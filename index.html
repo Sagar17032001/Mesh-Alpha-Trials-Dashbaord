@@ -8,327 +8,412 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --bg: #07090E; --card: #11151C; --card-hover: #161B24; --border: #1F2633;
-            --accent: #00D1FF; --accent-glow: rgba(0, 209, 255, 0.15);
-            --text-main: #FFFFFF; --text-dim: #94A3B8; --text-muted: #475569;
-            --danger: #FF4D4D; --danger-bg: rgba(255, 77, 77, 0.1);
-            --warning: #F59E0B; --warning-bg: rgba(245, 158, 11, 0.1);
-            --success: #10B981; --success-bg: rgba(16, 185, 129, 0.1);
-            --mono: 'JetBrains Mono', monospace;
+            --bg: #0B0E14; --card: #151A23; --card-hover: #1A212D; --border: #2A3241;
+            --accent: #3b82f6; --accent-glow: rgba(59, 130, 246, 0.2);
+            --text-main: #F3F4F6; --text-dim: #9CA3AF; --text-muted: #6B7280;
+            --danger: #ef4444; --danger-bg: rgba(239, 68, 68, 0.1);
+            --warning: #f59e0b; --warning-bg: rgba(245, 158, 11, 0.1);
+            --success: #10b981; --success-bg: rgba(16, 185, 129, 0.1);
         }
 
-        body { background: var(--bg); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding-bottom: 50px; -webkit-font-smoothing: antialiased; }
+        body { background: var(--bg); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding-bottom: 60px; -webkit-font-smoothing: antialiased; }
         
-        .header { background: rgba(11, 15, 22, 0.85); padding: 0.8rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(15px); }
-        .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
-        .brand span { color: var(--accent); }
+        /* Layout */
+        .header { background: rgba(21, 26, 35, 0.95); padding: 1rem 3rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(12px); }
+        .brand { font-weight: 800; font-size: 20px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; }
+        .version-tag { font-weight: 600; font-size: 10px; padding: 4px 8px; border-radius: 4px; background: var(--border); color: var(--text-dim); letter-spacing: 1px; }
+
+        .container { padding: 30px; max-width: 1750px; margin: 0 auto; }
         
-        .container { padding: 25px; max-width: 1650px; margin: 0 auto; }
+        /* Dashboard Hero Stats */
+        .impact-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+        .impact-card { background: linear-gradient(145deg, var(--card), #1c232e); border: 1px solid var(--border); border-radius: 12px; padding: 22px; border-left: 4px solid var(--accent); position: relative; overflow: hidden; }
+        .impact-card.crit { border-left-color: var(--danger); }
+        .impact-card.warn { border-left-color: var(--warning); }
+        .impact-title { font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-bottom: 12px; letter-spacing: 0.5px; }
+        .impact-value { font-size: 28px; font-weight: 800; margin-bottom: 5px; }
+        .impact-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+        .fleet-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .stat-box:hover { border-color: var(--accent); background: var(--card-hover); transform: translateY(-3px); }
+        .stat-value { font-size: 28px; font-weight: 800; color: var(--text-main); display: block; }
+        .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-top: 8px; }
+
+        /* Navigation & Filtering */
+        .toolbar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px 25px; margin-bottom: 25px; display: flex; gap: 20px; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .search-container { position: relative; flex-grow: 1; }
+        .search-input { width: 100%; padding: 14px 50px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-size: 14px; outline: none; box-sizing: border-box; transition: 0.2s; }
+        .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+        .btn-download { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); padding: 12px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+        .btn-download:hover { background: var(--success); color: white; }
+
+        /* Fleet Visualization */
+        .household-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 15px; overflow: hidden; transition: 0.2s; }
+        .household-trigger { padding: 20px 28px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .household-trigger:hover { background: var(--card-hover); }
         
-        /* Command Center Controls */
-        .control-strip { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 15px 25px; margin-bottom: 25px; display: flex; gap: 20px; align-items: center; justify-content: space-between; }
-        .search-bar { background: var(--bg); border: 1px solid var(--border); padding: 12px 20px; border-radius: 10px; color: white; width: 350px; outline: none; transition: 0.2s; }
-        .search-bar:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+        .node-vault { display: none; padding: 0 28px 28px 28px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.15); }
+        .node-row { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-top: 20px; }
         
-        .file-dropdown { background: var(--bg); color: var(--text-main); border: 1px solid var(--border); padding: 10px 15px; border-radius: 10px; font-size: 12px; cursor: pointer; }
+        .telemetry-matrix { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .matrix-section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 5px; }
+        .data-row:last-child { border: none; }
+        .data-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); }
 
-        /* KPI Blocks */
-        .impact-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
-        .impact-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; position: relative; transition: 0.3s; overflow: hidden; }
-        .impact-card::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: var(--border); }
-        .impact-card.crit::after { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
-        .impact-card.warn::after { background: var(--warning); }
-        
-        .impact-title { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-        .impact-value { font-family: var(--mono); font-size: 32px; font-weight: 700; color: var(--text-main); }
-        .impact-desc { font-size: 11px; color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
+        .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 15px; }
+        .status-critical { background: var(--danger); box-shadow: 0 0 12px var(--danger); animation: pulse 2s infinite; }
+        .status-optimal { background: var(--success); box-shadow: 0 0 8px var(--success); }
 
-        /* Fleet Stats */
-        .fleet-stats { display: flex; gap: 15px; margin-bottom: 25px; }
-        .stat-box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; align-items: center; }
-        .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent); }
-        .stat-label { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* Household Cards */
-        .household-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; transition: 0.2s; overflow: hidden; }
-        .household-card:hover { border-color: var(--accent); }
-        .hh-header { padding: 18px 25px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .hh-header:hover { background: var(--card-hover); }
+        /* Information Modals */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(11, 14, 20, 0.98); backdrop-filter: blur(10px); }
+        .modal-content { background: var(--card); margin: 4vh auto; padding: 35px; width: 92%; max-width: 1450px; border-radius: 20px; border: 1px solid var(--border); max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        .meta-box { background: var(--bg); padding: 18px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; transition: 0.2s; }
+        .meta-box:hover { border-color: var(--accent); }
 
-        .node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 15px; padding: 0 25px 25px 25px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.2); }
-        .node-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-top: 20px; }
-        
-        .status-badge { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
-        .badge-crit { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
-        .badge-ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
-
-        .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted var(--border); font-size: 13px; }
-        .metric-label { color: var(--text-dim); }
-        .metric-value { font-family: var(--mono); font-weight: 700; color: var(--accent); }
-        .metric-value.bad { color: var(--danger); }
-
-        /* Loader */
-        .loader-zone { border: 2px dashed var(--border); border-radius: 20px; padding: 60px; text-align: center; background: var(--card); }
-        .hidden { display: none; }
-        .btn-primary { background: var(--accent); color: var(--bg); border: none; padding: 12px 25px; border-radius: 8px; font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--accent-glow); }
+        .user-tag { background: var(--accent-glow); color: var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 10px; text-transform: uppercase; }
+        .file-dropdown { background: var(--bg); color: var(--text-main); border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; font-size: 12px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="header">
     <div class="brand">
-        <i class="fas fa-network-wired" style="color:var(--accent)"></i>
-        <div>MESH<span>ALPHA</span> <small style="font-size: 9px; opacity: 0.5; margin-left: 5px;">ENTERPRISE STABLE v6.1.4</small></div>
+        <i class="fas fa-network-wired" style="color:var(--accent); font-size: 24px;"></i>
+        <div style="display: flex; flex-direction: column;">
+            <span style="line-height: 1;">MESH<span style="color:var(--accent)">ALPHA</span></span>
+            <span class="version-tag">ENTERPRISE STABLE v6.0.4</span>
+        </div>
     </div>
-    <div id="clock" style="font-family: var(--mono); font-size: 13px; color: var(--accent);">00:00:00</div>
+    
+    <div style="display: flex; gap: 20px; align-items: center;">
+        <select id="fileSelector" class="file-dropdown"></select>
+        <div style="height: 30px; width: 1px; background: var(--border);"></div>
+        <div style="font-family: monospace; font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-clock" style="color: var(--accent);"></i>
+            <span id="current-time">00:00:00</span>
+        </div>
+    </div>
 </div>
 
 <div class="container">
-    
-    <div class="control-strip">
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <select id="fileSelector" class="file-dropdown">
-                <option value="">Select Pre-defined File...</option>
-            </select>
-            <input type="file" id="csvInput" accept=".csv" class="hidden">
-            <button class="btn-primary" style="padding: 10px 18px; font-size: 11px;" onclick="document.getElementById('csvInput').click()">
-                <i class="fas fa-upload"></i> MANUAL UPLOAD
-            </button>
+    <div class="impact-summary">
+        <div class="impact-card crit">
+            <div class="impact-title">Coverage Deficit</div>
+            <div class="impact-value" id="impact-cov">0</div>
+            <div class="impact-desc">Affected clients on nodes where < -80dBm floor samples exceed 15% threshold.</div>
         </div>
-        <input type="text" id="searchBox" class="search-bar" placeholder="Search by Username, Serial or MAC...">
+        <div class="impact-card warn">
+            <div class="impact-title">Throughput Bottleneck</div>
+            <div class="impact-value" id="impact-mcs">0</div>
+            <div class="impact-desc">Clients experiencing Tx link speed constraints (< 65Mbps) for > 50% session.</div>
+        </div>
+        <div class="impact-card crit">
+            <div class="impact-title">Roaming Stability Breach</div>
+            <div class="impact-value" id="impact-mob">0</div>
+            <div class="impact-desc">High volume disconnections or client flapping detected in latest window.</div>
+        </div>
+        <div class="impact-card">
+            <div class="impact-title">Band Sticky Trap</div>
+            <div class="impact-value" id="impact-sticky">0</div>
+            <div class="impact-desc">Clients remaining on 5G with poor local SNR instead of steering to 2.4G.</div>
+        </div>
     </div>
 
-    <div id="welcomeZone" class="loader-zone">
-        <i class="fas fa-terminal" style="font-size: 40px; color: var(--accent); margin-bottom: 20px;"></i>
-        <h2 style="margin: 0 0 10px 0;">Intelligence Engine Ready</h2>
-        <p style="color: var(--text-dim); margin-bottom: 25px;">Select a fleet dataset from the dropdown or upload a local CSV to begin diagnostics.</p>
+    <div class="fleet-stats">
+        <div class="stat-box"><span class="stat-value" id="stat-total-clients">0</span><span class="stat-label">Total Load</span></div>
+        <div class="stat-box"><span class="stat-value" id="stat-disc-count" style="color:var(--danger)">0</span><span class="stat-label">Fleet Disconnects</span></div>
+        <div class="stat-box"><span class="stat-value" id="stat-sticky-total">0</span><span class="stat-label">Sticky Events</span></div>
+        <div class="stat-box"><span class="stat-value" id="stat-mcs-avg" style="color:var(--success)">0%</span><span class="stat-label">Fleet Efficiency</span></div>
+        <div class="stat-box"><span class="stat-value" id="stat-breach-density" style="color:var(--warning)">0</span><span class="stat-label">Node Breaches</span></div>
     </div>
 
-    <div id="dashboardContent" class="hidden">
-        <div class="impact-summary">
-            <div class="impact-card crit">
-                <div class="impact-title">Coverage Deficit</div>
-                <div class="impact-value" id="kpi-cov">0</div>
-                <div class="impact-desc">Affected nodes where floor samples exceed 15% threshold.</div>
-            </div>
-            <div class="impact-card warn">
-                <div class="impact-title">Throughput Bottleneck</div>
-                <div class="impact-value" id="kpi-mcs">0</div>
-                <div class="impact-desc">Clients experiencing poor Tx link speed (>20% MCS Breach).</div>
-            </div>
-            <div class="impact-card crit">
-                <div class="impact-title">Roaming Stability</div>
-                <div class="impact-value" id="kpi-roam">0</div>
-                <div class="impact-desc">Total nodes exhibiting high client flapping or disconnects.</div>
-            </div>
-            <div class="impact-card">
-                <div class="impact-title">Sticky Traps</div>
-                <div class="impact-value" id="kpi-sticky">0</div>
-                <div class="impact-desc">Clients remaining on 5G with poor SNR instead of steering.</div>
-            </div>
+    <div class="toolbar">
+        <div class="search-container">
+            <i class="fas fa-search" style="position:absolute; left:20px; top:50%; transform:translateY(-50%); color:var(--text-muted);"></i>
+            <input id="masterFilter" class="search-input" placeholder="Search by Username (e.g. 'Shashwat'), Serial, or Issue Type...">
         </div>
+        <button class="btn-download" onclick="exportData()">
+            <i class="fas fa-file-export"></i> EXPORT FLEET DATA
+        </button>
+    </div>
 
-        <div class="fleet-stats">
-            <div class="stat-box"><span class="stat-value" id="stat-nodes">0</span><span class="stat-label">Analyzed Nodes</span></div>
-            <div class="stat-box"><span class="stat-value" id="stat-clients">0</span><span class="stat-label">Total Connected</span></div>
-            <div class="stat-box"><span class="stat-value" id="stat-disc" style="color:var(--danger)">0</span><span class="stat-label">Total Disconnects</span></div>
-            <div class="stat-box"><span class="stat-value" id="stat-eff" style="color:var(--success)">0%</span><span class="stat-label">Fleet Efficiency</span></div>
+    <div id="fleetDisplay"></div>
+</div>
+
+<div id="metaModal" class="modal">
+    <div class="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:25px; margin-bottom:25px;">
+            <div>
+                <h2 id="nodeTitle" style="margin:0; font-size:24px; letter-spacing:-0.5px;"></h2>
+                <div id="nodeSubtitle" style="color:var(--text-muted); font-size:12px; margin-top:5px;"></div>
+            </div>
+            <button onclick="closeMeta()" style="background:var(--danger); border:none; color:white; padding:12px 30px; border-radius:10px; cursor:pointer; font-weight:800; font-size:13px;">CLOSE TRACE</button>
         </div>
-
-        <div id="fleetList"></div>
+        <div id="metaGrid" class="meta-grid"></div>
     </div>
 </div>
 
 <script>
-    // Configuration & Metadata
-    const FILE_LIST = ["filtered_mesh_output_20_April_2026.csv", "filtered_mesh_output_21_April_2026.csv", "filtered_mesh_output_22_April_2026.csv", "filtered_mesh_output_13_April_2026_to_19_April_2026.csv"];
-    const THRESHOLDS = { cov: 15, mcs: 20, disc: 5 };
+    // System Constants
+    const FILE_LIST = ["filtered_mesh_output_20_April_2026.csv", "filtered_mesh_output_21_April_2026.csv", "filtered_mesh_output_22_April_2026.csv", "filtered_mesh_output_23_April_2026.csv","filtered_mesh_output_13_April_2026_to_19_April_2026.csv"];
     const USER_METADATA_FILE = "mesh_alpha_users.json";
 
-    let fleetData = {};
-    let userMap = {};
+    // Global State
+    let mainFleet = {};
+    let userMap = {}; 
+    let globalStats = {};
 
-    function init() {
+    // Logic Helpers
+    const clean = (v) => isNaN(parseFloat(v)) ? 0 : parseFloat(v);
+    const isBreach = (v) => v === "True" || v === true || v === "TRUE" || v === 1 || v === "1";
+
+    /**
+     * INITIALIZATION ENGINE
+     */
+    async function boot() {
         // Clock
-        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        setInterval(() => { document.getElementById('current-time').innerText = new Date().toLocaleTimeString(); }, 1000);
         
-        // Populate Dropdown
+        // Dataset Dropdown
         const sel = document.getElementById("fileSelector");
         FILE_LIST.forEach(f => {
             const o = document.createElement("option");
             o.value = f;
-            o.textContent = "Log: " + f.replace("filtered_mesh_output_", "").replace(".csv", "");
+            o.textContent = f.split('_')[3] + " " + f.split('_')[4].replace(".csv", "");
             sel.appendChild(o);
         });
+        sel.addEventListener("change", e => ingestFleet("filtered_data/" + e.target.value));
 
-        // Load User Mappings
-        fetch(USER_METADATA_FILE)
-            .then(res => res.json())
-            .then(json => { json.forEach(u => { userMap[u.serial.toUpperCase()] = u.user; }); })
-            .catch(e => console.warn("User metadata not found. Using raw serials."));
-
-        // Dropdown Event
-        sel.addEventListener("change", e => {
-            if(e.target.value) loadServerFile("filtered_data/" + e.target.value);
-        });
+        // Load User Mappings first, then Telemetry
+        try {
+            const userRes = await fetch(USER_METADATA_FILE);
+            const userJson = await userRes.json();
+            userJson.forEach(u => { userMap[u.serial.toUpperCase()] = u.user; });
+            
+            await ingestFleet("filtered_data/" + FILE_LIST[0]);
+        } catch (err) {
+            console.error("Critical Boot Error:", err);
+        }
     }
 
-    // Load from server
-    async function loadServerFile(path) {
-        const res = await fetch(path);
-        const csvText = await res.text();
-        parseCSV(csvText);
-    }
+    /**
+     * DATA INGESTION & PROCESSING
+     */
+    async function ingestFleet(path) {
+        const display = document.getElementById("fleetDisplay");
+        display.innerHTML = `<div style="text-align:center; padding:120px; color:var(--text-dim);"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>Parsing Mesh Telemetry...</div>`;
 
-    // Manual Upload Event
-    document.getElementById('csvInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        Papa.parse(file, {
-            header: true, dynamicTyping: true, skipEmptyLines: true,
-            complete: (res) => parseCSV(res.data, true)
-        });
-    });
+        try {
+            const res = await fetch(path);
+            const csvText = await res.text();
+            const { data } = Papa.parse(csvText, { header: true, dynamicTyping: true, skipEmptyLines: true });
 
-    function parseCSV(data, isObject = false) {
-        const rawData = isObject ? data : Papa.parse(data, { header: true, dynamicTyping: true, skipEmptyLines: true }).data;
-        processTelemetry(rawData);
-    }
+            mainFleet = {};
+            globalStats = { clients: 0, nodes: 0, disc: 0, sticky: 0, mcs_sum: 0, breaches: 0, impCov: 0, impMcs: 0, impMob: 0, impSticky: 0 };
 
-    function processTelemetry(data) {
-        fleetData = {};
-        let stats = { nodes: 0, clients: 0, disc: 0, mcs_sum: 0, cov_b: 0, mcs_b: 0, roam_b: 0, sticky_b: 0 };
+            data.forEach(row => {
+                const rawSn = (row.ont_serial_no || row.serial_number || "").toString().toUpperCase();
+                if (!rawSn) return;
 
-        data.forEach(row => {
-            const serial = (row.ont_serial_no || row.ONT_SERIAL_NO || "").toString().toUpperCase();
-            if (!serial) return;
+                const friendlyUser = userMap[rawSn] || "Unassigned Household";
+                const host = row.host_name || row.station_mac || "UNK-NODE";
 
-            const username = userMap[serial] || serial;
-            const host = (row.host_name || row.Station_Mac || "Node-" + stats.nodes);
-            
-            if (!fleetData[username]) fleetData[username] = { nodes: [], isCritical: false, serial: serial };
-            
-            // Core Logic
-            const covVal = Math.max(parseFloat(row.ap_with_poor_coverage_2 || 0), parseFloat(row.ap_with_poor_coverage_5 || 0));
-            const mcsVal = parseFloat(row.ap_with_poor_link_speed_mcs_rate || 0);
-            const discVal = parseFloat(row.ap_with_high_client_disconnection || 0);
-            const stickyVal = parseFloat(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage || 0);
-            
-            const nodeCrit = covVal > THRESHOLDS.cov || discVal > THRESHOLDS.disc || stickyVal > 0;
-            if (nodeCrit) fleetData[username].isCritical = true;
+                // Map Serial to Friendly Name group
+                if (!mainFleet[friendlyUser]) {
+                    mainFleet[friendlyUser] = { nodes: {}, serial: rawSn };
+                }
+                if (!mainFleet[friendlyUser].nodes[host]) {
+                    mainFleet[friendlyUser].nodes[host] = [];
+                }
+                mainFleet[friendlyUser].nodes[host].push(row);
 
-            fleetData[username].nodes.push({
-                name: host,
-                mac: row.Station_Mac || 'N/A',
-                cov: covVal,
-                mcs: mcsVal,
-                disc: discVal,
-                sticky: stickyVal,
-                clients: row.total_no_of_clients || row.station_count || 0,
-                isCrit: nodeCrit
+                // Run Health Logic
+                const health = runDiagnostics(row);
+                const cCount = clean(row.total_no_of_clients || row.total_clients);
+
+                globalStats.nodes++;
+                globalStats.clients += cCount;
+                globalStats.disc += clean(row.ap_with_high_client_disconnection);
+                globalStats.sticky += (clean(row.ap_with_high_no_of_sticky_client_2_with_good_coverage) + clean(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage));
+                globalStats.mcs_sum += clean(row.ap_with_poor_link_speed_mcs_rate);
+                
+                if (health.isCritical) globalStats.breaches++;
+                if (health.issues.cov) globalStats.impCov += cCount;
+                if (health.issues.mcs) globalStats.impMcs += cCount;
+                if (health.issues.mob) globalStats.impMob += cCount;
+                if (health.issues.sticky) globalStats.impSticky += cCount;
             });
 
-            // Globals
-            stats.nodes++;
-            stats.clients += (row.total_no_of_clients || row.station_count || 0);
-            stats.disc += discVal;
-            stats.mcs_sum += mcsVal;
-            if (covVal > THRESHOLDS.cov) stats.cov_b++;
-            if (mcsVal > THRESHOLDS.mcs) stats.mcs_b++;
-            if (discVal > THRESHOLDS.disc) stats.roam_b++;
-            if (stickyVal > 0) stats.sticky_b++;
-        });
-
-        updateUI(stats);
-        renderFleet();
-        
-        document.getElementById('welcomeZone').classList.add('hidden');
-        document.getElementById('dashboardContent').classList.remove('hidden');
+            updateUI();
+            renderFleet();
+        } catch (e) {
+            display.innerHTML = `<div style="color:var(--danger); text-align:center; padding:50px;">Failed to process fleet data. Check console.</div>`;
+        }
     }
 
-    function updateUI(s) {
-        document.getElementById('kpi-cov').innerText = s.cov_b;
-        document.getElementById('kpi-mcs').innerText = s.mcs_b;
-        document.getElementById('kpi-roam').innerText = s.roam_b;
-        document.getElementById('kpi-sticky').innerText = s.sticky_b;
-        
-        document.getElementById('stat-nodes').innerText = s.nodes;
-        document.getElementById('stat-clients').innerText = s.clients;
-        document.getElementById('stat-disc').innerText = s.disc;
-        document.getElementById('stat-eff').innerText = (100 - (s.mcs_sum / s.nodes || 0)).toFixed(1) + "%";
+    /**
+     * DIAGNOSTIC ENGINE (CORTECA RULES)
+     */
+    function runDiagnostics(row) {
+        const issues = {
+            cov: (clean(row.ap_with_poor_coverage_2) > 15 || clean(row.ap_with_poor_coverage_5) > 15),
+            mcs: (clean(row.ap_with_poor_link_speed_mcs_rate) > 20),
+            mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 5),
+            sticky: isBreach(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage_breach)
+        };
+
+        return { 
+            isCritical: issues.cov || issues.mob || issues.sticky, 
+            issues 
+        };
     }
 
-    function renderFleet() {
-        const list = document.getElementById('fleetList');
-        list.innerHTML = "";
-        const search = document.getElementById('searchBox').value.toLowerCase();
+    function updateUI() {
+        document.getElementById('stat-total-clients').innerText = globalStats.clients.toLocaleString();
+        document.getElementById('stat-disc-count').innerText = globalStats.disc.toLocaleString();
+        document.getElementById('stat-sticky-total').innerText = globalStats.sticky.toLocaleString();
+        document.getElementById('stat-mcs-avg').innerText = (100 - (globalStats.mcs_sum / globalStats.nodes || 0)).toFixed(1) + '%';
+        document.getElementById('stat-breach-density').innerText = globalStats.breaches.toLocaleString();
 
-        Object.keys(fleetData).forEach((user) => {
-            const hh = fleetData[user];
-            if (search && !user.toLowerCase().includes(search) && !hh.serial.toLowerCase().includes(search)) return;
-            
-            const hhCard = document.createElement('div');
-            hhCard.className = 'household-card';
-            hhCard.innerHTML = `
-                <div class="hh-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
-                    <div style="display:flex; align-items:center; gap:15px;">
-                        <span class="status-badge ${hh.isCritical ? 'badge-crit' : 'badge-ok'}">
-                            <i class="fas ${hh.isCritical ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
-                            ${hh.isCritical ? 'Alert' : 'Optimal'}
-                        </span>
+        document.getElementById('impact-cov').innerText = globalStats.impCov.toLocaleString();
+        document.getElementById('impact-mcs').innerText = globalStats.impMcs.toLocaleString();
+        document.getElementById('impact-mob').innerText = globalStats.impMob.toLocaleString();
+        document.getElementById('impact-sticky').innerText = globalStats.impSticky.toLocaleString();
+    }
+
+    /**
+     * RENDERING COMPONENT
+     */
+    function renderFleet(query = "") {
+        const display = document.getElementById("fleetDisplay");
+        display.innerHTML = "";
+        const q = query.toLowerCase();
+
+        Object.keys(mainFleet).forEach((user, idx) => {
+            const serial = mainFleet[user].serial;
+            if (q && !user.toLowerCase().includes(q) && !serial.toLowerCase().includes(q)) return;
+
+            let houseCritical = false;
+            const nodeItems = Object.keys(mainFleet[user].nodes).map(nodeId => {
+                const records = mainFleet[user].nodes[nodeId];
+                const last = records[records.length - 1];
+                const health = runDiagnostics(last);
+                if (health.isCritical) houseCritical = true;
+
+                return `
+                <div class="node-row" style="${health.isCritical ? 'border-left:5px solid var(--danger);' : ''}">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
                         <div>
-                            <div style="font-weight:800; font-size:16px;">${user}</div>
-                            <div style="font-size:10px; color:var(--text-dim); font-family:var(--mono)">SN: ${hh.serial}</div>
+                            <div style="font-weight:900; color:var(--accent); font-size:15px; letter-spacing:0.5px;">${nodeId}</div>
+                            <div style="font-size:10px; color:var(--text-muted); font-family:monospace; margin-top:4px;">${last.station_mac || 'MAC_UNKNOWN'}</div>
+                        </div>
+                        <button class="btn-download" style="padding:5px 12px; font-size:10px;" onclick="showTrace('${user}', '${nodeId}', ${records.length-1})">DIAGNOSTICS</button>
+                    </div>
+                    <div class="telemetry-matrix">
+                        <div class="matrix-section">
+                            <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Radio Signal</div>
+                            <div class="data-row"><span>SNR 2.4 / 5G</span><span class="data-val">${last.ap_with_poor_snr_sample_2}% / ${last.ap_with_poor_snr_sample_5}%</span></div>
+                            <div class="data-row"><span>Cov 2.4 / 5G</span><span class="data-val">${last.ap_with_poor_coverage_2}% / ${last.ap_with_poor_coverage_5}%</span></div>
+                        </div>
+                        <div class="matrix-section">
+                            <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Throughput</div>
+                            <div class="data-row"><span>MCS Breach</span><span class="data-val" style="${health.issues.mcs ? 'color:var(--warning)' : ''}">${last.ap_with_poor_link_speed_mcs_rate}%</span></div>
+                            <div class="data-row"><span>Clients</span><span class="data-val">${last.total_no_of_clients || 0}</span></div>
+                        </div>
+                        <div class="matrix-section">
+                            <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Stability</div>
+                            <div class="data-row"><span>Disconnects</span><span class="data-val" style="${health.issues.mob ? 'color:var(--danger)' : ''}">${last.ap_with_high_client_disconnection}</span></div>
+                            <div class="data-row"><span>Sticky 5G</span><span class="data-val">${last.ap_with_high_no_of_sticky_client_5_with_poor_coverage}</span></div>
                         </div>
                     </div>
-                    <div style="text-align:right;">
-                        <div style="font-weight:700; font-size:14px;">${hh.nodes.length} Nodes</div>
-                        <i class="fas fa-chevron-down" style="font-size: 10px; color:var(--text-muted)"></i>
+                </div>`;
+            }).join('');
+
+            const card = document.createElement("div");
+            card.className = "household-card";
+            card.innerHTML = `
+                <div class="household-trigger" onclick="toggle('h-${idx}')">
+                    <div style="display:flex; align-items:center;">
+                        <span class="status-dot ${houseCritical ? 'status-critical' : 'status-optimal'}"></span>
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="font-weight:800; font-size:17px; color:var(--text-main);">${user}</span>
+                            <span style="font-size:11px; color:var(--text-dim); font-family:monospace;">${serial}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:25px; align-items:center;">
+                        <div style="text-align:right;">
+                            <div style="font-size:9px; color:var(--text-muted); font-weight:800;">TOPOLOGY</div>
+                            <div style="font-weight:800; font-size:14px;">${Object.keys(mainFleet[user].nodes).length} NODES</div>
+                        </div>
+                        <i class="fas fa-chevron-down" id="icon-h-${idx}" style="color:var(--text-muted)"></i>
                     </div>
                 </div>
-                <div class="node-grid hidden">
-                    ${hh.nodes.map(n => `
-                        <div class="node-item" style="${n.isCrit ? 'border-left: 4px solid var(--danger)' : ''}">
-                            <div style="font-weight:800; font-size:13px; color:var(--accent); margin-bottom:12px; display:flex; justify-content:space-between;">
-                                <span>${n.name}</span>
-                                <span style="font-size:9px; color:var(--text-muted)">${n.mac}</span>
-                            </div>
-                            <div class="metric-row">
-                                <span class="metric-label">Poor Coverage Threshold</span>
-                                <span class="metric-value ${n.cov > THRESHOLDS.cov ? 'bad' : ''}">${n.cov}%</span>
-                            </div>
-                            <div class="metric-row">
-                                <span class="metric-label">Throughput (MCS Breach)</span>
-                                <span class="metric-value ${n.mcs > THRESHOLDS.mcs ? 'bad' : ''}">${n.mcs}%</span>
-                            </div>
-                            <div class="metric-row">
-                                <span class="metric-label">Disconnect Events</span>
-                                <span class="metric-value ${n.disc > THRESHOLDS.disc ? 'bad' : ''}">${n.disc}</span>
-                            </div>
-                            <div class="metric-row">
-                                <span class="metric-label">Sticky 5G Traps</span>
-                                <span class="metric-value ${n.sticky > 0 ? 'bad' : ''}">${n.sticky}</span>
-                            </div>
-                            <div class="metric-row" style="border:none; margin-top:5px;">
-                                <span class="metric-label">Active Load</span>
-                                <span class="metric-value" style="color:var(--text-main)">${n.clients} Clients</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            list.appendChild(hhCard);
+                <div id="h-${idx}" class="node-vault">${nodeItems}</div>`;
+            display.appendChild(card);
         });
     }
 
-    document.getElementById('searchBox').addEventListener('input', renderFleet);
-    init();
-</script>
+    function toggle(id) {
+        const e = document.getElementById(id);
+        const icon = document.getElementById('icon-' + id);
+        const isOpen = e.style.display === "block";
+        e.style.display = isOpen ? "none" : "block";
+        icon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+    }
 
+    function showTrace(user, node, idx) {
+        const data = mainFleet[user].nodes[node][idx];
+        document.getElementById("nodeTitle").innerText = user;
+        document.getElementById("nodeSubtitle").innerText = `Node ID: ${node} | Physical Serial: ${mainFleet[user].serial}`;
+        
+        const grid = document.getElementById("metaGrid");
+        grid.innerHTML = "";
+        
+        Object.entries(data).forEach(([key, val]) => {
+            grid.innerHTML += `
+                <div class="meta-box">
+                    <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:800;">${key.replace(/_/g, " ")}</span>
+                    <span style="font-family:monospace; font-size:14px; font-weight:700; color:var(--accent);">${val ?? 'N/A'}</span>
+                </div>`;
+        });
+        document.getElementById("metaModal").style.display = "block";
+    }
+
+    function closeMeta() { document.getElementById("metaModal").style.display = "none"; }
+
+    function exportData() {
+        const flattened = [];
+        Object.keys(mainFleet).forEach(user => {
+            Object.keys(mainFleet[user].nodes).forEach(node => {
+                const logs = mainFleet[user].nodes[node];
+                const last = logs[logs.length-1];
+                flattened.push({ Username: user, ...last });
+            });
+        });
+        const csv = Papa.unparse(flattened);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Fleet_Audit_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+    }
+
+    document.getElementById("masterFilter").addEventListener("input", e => renderFleet(e.target.value));
+    
+    // START SYSTEM
+    boot();
+</script>
+        
 </body>
 </html>
