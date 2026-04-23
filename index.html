@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MeshAlpha | Enterprise Fleet Dashboard</title>
-
+    <title>MeshAlpha | Enterprise Fleet Dashboard v8</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -18,18 +19,20 @@
             --danger: #ef4444; --danger-bg: rgba(239, 68, 68, 0.1);
             --warning: #f59e0b; --warning-bg: rgba(245, 158, 11, 0.1);
             --success: #10b981; --success-bg: rgba(16, 185, 129, 0.1);
+            --purple: #8b5cf6; --pink: #ec4899; --cyan: #06b6d4; --orange: #f97316;
         }
 
+        * { box-sizing: border-box; }
         body { background: var(--bg); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding-bottom: 60px; -webkit-font-smoothing: antialiased; }
-        
-        /* Layout */
+
+        /* Header */
         .header { background: rgba(21, 26, 35, 0.95); padding: 1rem 3rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(12px); }
         .brand { font-weight: 800; font-size: 20px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; }
         .version-tag { font-weight: 600; font-size: 10px; padding: 4px 8px; border-radius: 4px; background: var(--border); color: var(--text-dim); letter-spacing: 1px; }
 
         .container { padding: 30px; max-width: 1750px; margin: 0 auto; }
-        
-        /* Dashboard Hero Stats */
+
+        /* Impact Summary */
         .impact-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
         .impact-card { background: linear-gradient(145deg, var(--card), #1c232e); border: 1px solid var(--border); border-radius: 12px; padding: 22px; border-left: 4px solid var(--accent); position: relative; overflow: hidden; }
         .impact-card.crit { border-left-color: var(--danger); }
@@ -38,50 +41,109 @@
         .impact-value { font-size: 28px; font-weight: 800; margin-bottom: 5px; }
         .impact-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
 
+        /* Fleet Stats */
         .fleet-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 30px; }
         .stat-box { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .stat-box:hover { border-color: var(--accent); background: var(--card-hover); transform: translateY(-3px); }
         .stat-value { font-size: 28px; font-weight: 800; color: var(--text-main); display: block; }
         .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; margin-top: 8px; }
 
-        /* Navigation & Filtering */
+        /* Charts Section */
+        .charts-heading { font-size: 22px; font-weight: 800; margin-bottom: 20px; color: var(--text-main); display: flex; align-items: center; gap: 12px; }
+        .charts-section { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; min-height: 340px; transition: 0.2s; }
+        .chart-card:hover { border-color: var(--accent); }
+        .chart-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--text-dim); margin-bottom: 15px; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+        .chart-canvas-wrap { position: relative; height: 280px; }
+        .info-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 25px; display: flex; flex-direction: column; gap: 12px; min-height: 150px; }
+        .info-badge { background: var(--warning-bg); color: var(--warning); padding: 6px 14px; border-radius: 8px; font-size: 11px; font-weight: 700; display: inline-block; width: fit-content; }
+
+        /* Toolbar */
         .toolbar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px 25px; margin-bottom: 25px; display: flex; gap: 20px; align-items: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
         .search-container { position: relative; flex-grow: 1; }
-        .search-input { width: 100%; padding: 14px 50px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-size: 14px; outline: none; box-sizing: border-box; transition: 0.2s; }
+        .search-input { width: 100%; padding: 14px 50px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-main); font-size: 14px; outline: none; box-sizing: border-box; transition: 0.2s; font-family: 'Plus Jakarta Sans', sans-serif; }
         .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-
-        .btn-download { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); padding: 12px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+        .btn-download { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); padding: 12px 24px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; font-family: 'Plus Jakarta Sans', sans-serif; }
         .btn-download:hover { background: var(--success); color: white; }
 
-        /* Fleet Visualization */
+        /* Fleet Display */
         .household-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 15px; overflow: hidden; transition: 0.2s; }
         .household-trigger { padding: 20px 28px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .household-trigger:hover { background: var(--card-hover); }
-        
         .node-vault { display: none; padding: 0 28px 28px 28px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.15); }
         .node-row { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-top: 20px; }
-        
         .telemetry-matrix { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
         .matrix-section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
         .data-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 5px; }
         .data-row:last-child { border: none; }
         .data-val { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--accent); }
-
         .status-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 15px; }
         .status-critical { background: var(--danger); box-shadow: 0 0 12px var(--danger); animation: pulse 2s infinite; }
         .status-optimal { background: var(--success); box-shadow: 0 0 8px var(--success); }
-
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* Information Modals */
+        /* Device & Capability Badges */
+        .device-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--bg); padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; color: var(--text-dim); border: 1px solid var(--border); margin-right: 6px; margin-top: 6px; }
+        .wifi-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: 9px; font-weight: 800; letter-spacing: 0.5px; }
+        .wifi-badge.eht { background: rgba(139,92,246,0.15); color: var(--purple); border: 1px solid var(--purple); }
+        .wifi-badge.he { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid var(--cyan); }
+        .wifi-badge.vht { background: rgba(59,130,246,0.15); color: var(--accent); border: 1px solid var(--accent); }
+        .wifi-badge.ht { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid var(--warning); }
+        .wifi-badge.legacy { background: rgba(107,114,128,0.15); color: var(--text-muted); border: 1px solid var(--text-muted); }
+        .band-indicator { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; font-size: 9px; font-weight: 800; }
+        .band-5g { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid var(--success); }
+        .band-2g { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid var(--orange); }
+
+        /* Modal */
         .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(11, 14, 20, 0.98); backdrop-filter: blur(10px); }
         .modal-content { background: var(--card); margin: 4vh auto; padding: 35px; width: 92%; max-width: 1450px; border-radius: 20px; border: 1px solid var(--border); max-height: 88vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
         .meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
         .meta-box { background: var(--bg); padding: 18px; border-radius: 10px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; transition: 0.2s; }
         .meta-box:hover { border-color: var(--accent); }
 
-        .user-tag { background: var(--accent-glow); color: var(--accent); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 10px; text-transform: uppercase; }
-        .file-dropdown { background: var(--bg); color: var(--text-main); border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; font-size: 12px; cursor: pointer; }
+        .file-dropdown { background: var(--bg); color: var(--text-main); border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; font-size: 12px; cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif; }
+
+        @media (max-width: 1200px) { .charts-section { grid-template-columns: repeat(2, 1fr); } .impact-summary { grid-template-columns: repeat(2, 1fr); } .fleet-stats { grid-template-columns: repeat(3, 1fr); } .telemetry-matrix { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .charts-section { grid-template-columns: 1fr; } .impact-summary { grid-template-columns: 1fr; } .fleet-stats { grid-template-columns: repeat(2, 1fr); } .header { padding: 1rem; } .container { padding: 15px; } }
+
+        /* ===== LIGHT THEME OVERRIDES ===== */
+        body.light-theme {
+            --bg: #F8FAFC; --card: #FFFFFF; --card-hover: #F1F5F9; --border: #E2E8F0;
+            --accent-glow: rgba(59,130,246,0.1);
+            --text-main: #1E293B; --text-dim: #64748B; --text-muted: #94A3B8;
+            --danger-bg: rgba(239,68,68,0.06); --warning-bg: rgba(245,158,11,0.06);
+            --success-bg: rgba(16,185,129,0.06);
+        }
+        body.light-theme .header { background: rgba(255,255,255,0.92); border-bottom: 1px solid #E2E8F0; }
+        body.light-theme .impact-card { background: linear-gradient(145deg,#FFFFFF,#F8FAFC); }
+        body.light-theme .node-vault { background: rgba(241,245,249,0.5); }
+        body.light-theme .node-row { background: #F8FAFC; }
+        body.light-theme .search-input { background: #F1F5F9; color: #1E293B; }
+        body.light-theme .file-dropdown { background: #F1F5F9; color: #1E293B; border-color: #CBD5E1; }
+        body.light-theme .version-tag { background: #E2E8F0; color: #64748B; }
+        body.light-theme .household-card { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        body.light-theme .chart-card { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        body.light-theme .modal-content { background: #FFFFFF; }
+        body.light-theme .export-overlay { background: rgba(248,250,252,0.92); }
+
+        /* ===== THEME TOGGLE ===== */
+        .theme-toggle { display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); padding:8px 16px; border-radius:50px; cursor:pointer; font-size:12px; color:var(--text-dim); font-weight:700; font-family:'Plus Jakarta Sans',sans-serif; transition:all 0.3s; letter-spacing:0.5px; }
+        .theme-toggle:hover { border-color:var(--accent); color:var(--accent); transform:scale(1.03); }
+        .theme-toggle i { font-size:13px; }
+
+        /* ===== EXPORT BUTTONS ===== */
+        .btn-pdf { background:rgba(139,92,246,0.1); color:#8b5cf6; border:1px solid #8b5cf6; padding:12px 20px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:8px; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap; letter-spacing:0.5px; }
+        .btn-pdf:hover { background:#8b5cf6; color:white; transform:translateY(-1px); }
+        .btn-png { background:rgba(6,182,212,0.1); color:#06b6d4; border:1px solid #06b6d4; padding:12px 20px; border-radius:10px; font-size:12px; font-weight:700; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:8px; font-family:'Plus Jakarta Sans',sans-serif; white-space:nowrap; letter-spacing:0.5px; }
+        .btn-png:hover { background:#06b6d4; color:white; transform:translateY(-1px); }
+
+        /* ===== EXPORT OVERLAY ===== */
+        .export-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(11,14,20,0.92); z-index:3000; justify-content:center; align-items:center; flex-direction:column; gap:20px; backdrop-filter:blur(8px); }
+        .export-overlay.active { display:flex; }
+        .export-spinner { width:48px; height:48px; border:4px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:exportSpin 0.8s linear infinite; }
+        .export-text { font-size:15px; font-weight:700; color:var(--text-main); letter-spacing:0.5px; font-family:'Plus Jakarta Sans',sans-serif; }
+        @keyframes exportSpin { to { transform:rotate(360deg); } }
+
     </style>
 </head>
 <body>
@@ -91,10 +153,14 @@
         <i class="fas fa-network-wired" style="color:var(--accent); font-size: 24px;"></i>
         <div style="display: flex; flex-direction: column;">
             <span style="line-height: 1;">MESH<span style="color:var(--accent)">ALPHA</span></span>
-            <span class="version-tag">ENTERPRISE STABLE v6.0.4</span>
+            <span class="version-tag">ENTERPRISE STABLE v8.0.0</span>
         </div>
     </div>
-    
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+            <i id="themeIcon" class="fas fa-moon"></i>
+            <span id="themeLabel">DARK</span>
+        </button>
+    </div>
     <div style="display: flex; gap: 20px; align-items: center;">
         <select id="fileSelector" class="file-dropdown"></select>
         <div style="height: 30px; width: 1px; background: var(--border);"></div>
@@ -106,16 +172,18 @@
 </div>
 
 <div class="container">
+
+    <!-- IMPACT SUMMARY -->
     <div class="impact-summary">
         <div class="impact-card crit">
             <div class="impact-title">Coverage Deficit</div>
             <div class="impact-value" id="impact-cov">0</div>
-            <div class="impact-desc">Affected clients on nodes where < -80dBm floor samples exceed 15% threshold.</div>
+            <div class="impact-desc">Affected clients on nodes where &lt; -80dBm floor samples exceed 15% threshold.</div>
         </div>
         <div class="impact-card warn">
             <div class="impact-title">Throughput Bottleneck</div>
             <div class="impact-value" id="impact-mcs">0</div>
-            <div class="impact-desc">Clients experiencing Tx link speed constraints (< 65Mbps) for > 50% session.</div>
+            <div class="impact-desc">Clients experiencing Tx link speed constraints (&lt; 65Mbps) for &gt; 50% session.</div>
         </div>
         <div class="impact-card crit">
             <div class="impact-title">Roaming Stability Breach</div>
@@ -129,27 +197,108 @@
         </div>
     </div>
 
+    <!-- FLEET STATS -->
     <div class="fleet-stats">
-        <div class="stat-box"><span class="stat-value" id="stat-total-clients">0</span><span class="stat-label">Total Load</span></div>
+        <div class="stat-box"><span class="stat-value" id="stat-total-clients">0</span><span class="stat-label">Total Client Load</span></div>
         <div class="stat-box"><span class="stat-value" id="stat-disc-count" style="color:var(--danger)">0</span><span class="stat-label">Fleet Disconnects</span></div>
         <div class="stat-box"><span class="stat-value" id="stat-sticky-total">0</span><span class="stat-label">Sticky Events</span></div>
         <div class="stat-box"><span class="stat-value" id="stat-mcs-avg" style="color:var(--success)">0%</span><span class="stat-label">Fleet Efficiency</span></div>
         <div class="stat-box"><span class="stat-value" id="stat-breach-density" style="color:var(--warning)">0</span><span class="stat-label">Node Breaches</span></div>
     </div>
 
+    <!-- CHARTS SECTION -->
+    <div class="charts-heading"><i class="fas fa-chart-pie" style="color:var(--accent);"></i> Cumulative Fleet Analytics</div>
+
+    <!-- Row 1: Doughnuts -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-broadcast-tower"></i> Band Distribution (TOT)</div>
+            <div class="chart-canvas-wrap"><canvas id="chartBandTOT"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-wifi"></i> Client Capability Matrix</div>
+            <div class="chart-canvas-wrap"><canvas id="chartCapability"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-server"></i> Pod Health Status</div>
+            <div class="chart-canvas-wrap"><canvas id="chartPodHealth"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Row 2: Coverage / SNR / MCS Bars -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-signal"></i> Poor Coverage by Household</div>
+            <div class="chart-canvas-wrap"><canvas id="chartCoverage"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-wave-square"></i> Poor SNR by Household</div>
+            <div class="chart-canvas-wrap"><canvas id="chartSNR"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-tachometer-alt"></i> Poor MCS Rate by Household</div>
+            <div class="chart-canvas-wrap"><canvas id="chartMCS"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Row 3: Sticky / Disconnections / Uptime -->
+    <div class="charts-section">
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-magnet"></i> Sticky Clients by Household</div>
+            <div class="chart-canvas-wrap"><canvas id="chartSticky"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-plug"></i> Client Disconnections by Household</div>
+            <div class="chart-canvas-wrap"><canvas id="chartDisconnect"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title"><i class="fas fa-heartbeat"></i> Pod Uptime (%)</div>
+            <div class="chart-canvas-wrap"><canvas id="chartUptime"></canvas></div>
+        </div>
+    </div>
+
+    <!-- Row 4: Info Cards -->
+    <div class="charts-section">
+        <div class="info-card">
+            <div class="chart-title"><i class="fas fa-satellite-dish"></i> Backhaul RSSI</div>
+            <span class="info-badge"><i class="fas fa-info-circle"></i> DATA NOT IN CURRENT EXPORT</span>
+            <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">Backhaul RSSI telemetry requires pod-to-pod link-layer export. Current dataset includes WiFi client metrics only. Contact platform team to enable <code style="color:var(--accent);">mesh_backhaul_rssi</code> column in future exports.</p>
+        </div>
+        <div class="info-card">
+            <div class="chart-title"><i class="fas fa-redo"></i> Pod Reboot Counts</div>
+            <span class="info-badge"><i class="fas fa-info-circle"></i> DATA NOT IN CURRENT EXPORT</span>
+            <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">Reboot count telemetry is available via the mesh controller API but is not present in the current CSV export. Enable <code style="color:var(--accent);">pod_reboot_count</code> field in the data pipeline.</p>
+        </div>
+        <div class="info-card">
+            <div class="chart-title"><i class="fas fa-random"></i> Roaming History (Proxy)</div>
+            <span class="info-badge"><i class="fas fa-exclamation-triangle"></i> PROXY METRIC</span>
+            <p style="font-size:12px; color:var(--text-dim); line-height:1.6;">True roaming attempt vs. success data requires 802.11r/k/v event logs. Currently using <strong style="color:var(--warning);">client disconnection counts</strong> as a roaming instability proxy. High disconnections correlate with failed roaming attempts.</p>
+            <div class="chart-canvas-wrap" style="height:180px;"><canvas id="chartRoaming"></canvas></div>
+        </div>
+    </div>
+
+    <!-- TOOLBAR -->
     <div class="toolbar">
         <div class="search-container">
             <i class="fas fa-search" style="position:absolute; left:20px; top:50%; transform:translateY(-50%); color:var(--text-muted);"></i>
-            <input id="masterFilter" class="search-input" placeholder="Search by Username (e.g. 'Shashwat'), Serial, or Issue Type...">
+            <input id="masterFilter" class="search-input" placeholder="Search by Username, Serial, Device Type, or Issue...">
         </div>
+        <button class="btn-png" onclick="exportPNG()">
+            <i class="fas fa-image"></i> PNG
+        </button>
+        <button class="btn-pdf" onclick="exportPDF()">
+            <i class="fas fa-file-pdf"></i> PDF
+        </button>
         <button class="btn-download" onclick="exportData()">
-            <i class="fas fa-file-export"></i> EXPORT FLEET DATA
+            <i class="fas fa-file-export"></i> CSV
         </button>
     </div>
 
+    <!-- FLEET DISPLAY -->
     <div id="fleetDisplay"></div>
 </div>
 
+<!-- DIAGNOSTICS MODAL -->
 <div id="metaModal" class="modal">
     <div class="modal-content">
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border); padding-bottom:25px; margin-bottom:25px;">
@@ -157,263 +306,827 @@
                 <h2 id="nodeTitle" style="margin:0; font-size:24px; letter-spacing:-0.5px;"></h2>
                 <div id="nodeSubtitle" style="color:var(--text-muted); font-size:12px; margin-top:5px;"></div>
             </div>
-            <button onclick="closeMeta()" style="background:var(--danger); border:none; color:white; padding:12px 30px; border-radius:10px; cursor:pointer; font-weight:800; font-size:13px;">CLOSE TRACE</button>
+            <button onclick="closeMeta()" style="background:var(--danger); border:none; color:white; padding:12px 30px; border-radius:10px; cursor:pointer; font-weight:800; font-size:13px; font-family:'Plus Jakarta Sans',sans-serif;">CLOSE TRACE</button>
         </div>
         <div id="metaGrid" class="meta-grid"></div>
     </div>
 </div>
 
 <script>
-    // System Constants
-    const FILE_LIST = ["filtered_mesh_output_20_April_2026.csv", "filtered_mesh_output_21_April_2026.csv", "filtered_mesh_output_22_April_2026.csv", "filtered_mesh_output_23_April_2026.csv","filtered_mesh_output_13_April_2026_to_19_April_2026.csv"];
-    const USER_METADATA_FILE = "mesh_alpha_users.json";
+// ==================== SYSTEM CONSTANTS ====================
+const FILE_LIST = [
+    "filtered_mesh_output_20_April_2026.csv",
+    "filtered_mesh_output_21_April_2026.csv"
+];
+const USER_METADATA_FILE = "mesh_alpha_users.json";
 
-    // Global State
-    let mainFleet = {};
-    let userMap = {}; 
-    let globalStats = {};
+// ==================== GLOBAL STATE ====================
+let mainFleet = {};
+let userMap = {};
+let globalStats = {};
+let allClientRows = [];
+let allPodRows = [];
+let chartInstances = {};
 
-    // Logic Helpers
-    const clean = (v) => isNaN(parseFloat(v)) ? 0 : parseFloat(v);
-    const isBreach = (v) => v === "True" || v === true || v === "TRUE" || v === 1 || v === "1";
+// ==================== HELPERS ====================
+const clean = (v) => isNaN(parseFloat(v)) ? 0 : parseFloat(v);
+const isBreach = (v) => v === "True" || v === true || v === "TRUE" || v === 1 || v === "1";
+const pct = (v) => clean(v).toFixed(1) + "%";
 
-    /**
-     * INITIALIZATION ENGINE
-     */
-    async function boot() {
-        // Clock
-        setInterval(() => { document.getElementById('current-time').innerText = new Date().toLocaleTimeString(); }, 1000);
-        
-        // Dataset Dropdown
-        const sel = document.getElementById("fileSelector");
-        FILE_LIST.forEach(f => {
-            const o = document.createElement("option");
-            o.value = f;
-            o.textContent = f.split('_')[3] + " " + f.split('_')[4].replace(".csv", "");
-            sel.appendChild(o);
-        });
-        sel.addEventListener("change", e => ingestFleet("filtered_data/" + e.target.value));
+function getWifiStandard(row) {
+    if (isBreach(row.supporteht) || row.supporteht === "True" || row.supporteht === "1") return "WiFi 6E (EHT)";
+    if (isBreach(row.supporthe) || row.supporthe === "True" || row.supporthe === "1") return "WiFi 6 (HE)";
+    if (isBreach(row.supportvht) || row.supportvht === "True" || row.supportvht === "1") return "WiFi 5 (AC)";
+    if (isBreach(row.supportht) || row.supportht === "True" || row.supportht === "1") return "WiFi 4 (HT)";
+    return "Legacy";
+}
 
-        // Load User Mappings first, then Telemetry
-        try {
-            const userRes = await fetch(USER_METADATA_FILE);
-            const userJson = await userRes.json();
-            userJson.forEach(u => { userMap[u.serial.toUpperCase()] = u.user; });
-            
-            await ingestFleet("filtered_data/" + FILE_LIST[0]);
-        } catch (err) {
-            console.error("Critical Boot Error:", err);
-        }
+function getWifiBadgeClass(row) {
+    if (isBreach(row.supporteht) || row.supporteht === "True" || row.supporteht === "1") return "eht";
+    if (isBreach(row.supporthe) || row.supporthe === "True" || row.supporthe === "1") return "he";
+    if (isBreach(row.supportvht) || row.supportvht === "True" || row.supportvht === "1") return "vht";
+    if (isBreach(row.supportht) || row.supportht === "True" || row.supportht === "1") return "ht";
+    return "legacy";
+}
+
+function getBandLabel(row) {
+    const b = clean(row.connectedband);
+    if (b === 1 || b === 1.0) return "5 GHz";
+    if (b === 0 || b === 0.0) return "2.4 GHz";
+    return "Unknown";
+}
+
+function isClientRow(row) {
+    const sm = (row.station_mac || "").toString().trim();
+    return sm !== "" && sm !== "0" && sm !== "0.0";
+}
+
+function isPodRow(row) {
+    const sm = (row.station_mac || "").toString().trim();
+    const ma = (row.mac_address || "").toString().trim();
+    return (sm === "" || sm === "0" || sm === "0.0") && ma !== "" && ma !== "0";
+}
+
+function truncLabel(label, max) {
+    if (!label) return "Unknown";
+    return label.length > max ? label.substring(0, max) + "…" : label;
+}
+
+// ==================== CHART COLORS ====================
+const COLORS = {
+    blue: '#3b82f6', red: '#ef4444', amber: '#f59e0b', green: '#10b981',
+    purple: '#8b5cf6', pink: '#ec4899', cyan: '#06b6d4', orange: '#f97316',
+    blueA: 'rgba(59,130,246,0.7)', redA: 'rgba(239,68,68,0.7)',
+    amberA: 'rgba(245,158,11,0.7)', greenA: 'rgba(16,185,129,0.7)',
+    purpleA: 'rgba(139,92,246,0.7)', pinkA: 'rgba(236,72,153,0.7)',
+    cyanA: 'rgba(6,182,212,0.7)', orangeA: 'rgba(249,115,22,0.7)'
+};
+
+const CHART_DEFAULTS = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 11, family: "'Plus Jakarta Sans'" }, padding: 12, usePointStyle: true, pointStyleWidth: 10 } },
+        tooltip: { backgroundColor: '#1A212D', titleColor: '#F3F4F6', bodyColor: '#9CA3AF', borderColor: '#2A3241', borderWidth: 1, padding: 12, cornerRadius: 8, titleFont: { weight: 'bold' } }
     }
+};
 
-    /**
-     * DATA INGESTION & PROCESSING
-     */
-    async function ingestFleet(path) {
-        const display = document.getElementById("fleetDisplay");
-        display.innerHTML = `<div style="text-align:center; padding:120px; color:var(--text-dim);"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>Parsing Mesh Telemetry...</div>`;
+// ==================== BOOT ====================
+async function boot() {
+    setInterval(() => { document.getElementById('current-time').innerText = new Date().toLocaleTimeString(); }, 1000);
 
-        try {
-            const res = await fetch(path);
-            const csvText = await res.text();
-            const { data } = Papa.parse(csvText, { header: true, dynamicTyping: true, skipEmptyLines: true });
+    const sel = document.getElementById("fileSelector");
+    const allOpt = document.createElement("option");
+    allOpt.value = "ALL";
+    allOpt.textContent = "\uD83D\uDCCA All Files (Combined)";
+    sel.appendChild(allOpt);
 
-            mainFleet = {};
-            globalStats = { clients: 0, nodes: 0, disc: 0, sticky: 0, mcs_sum: 0, breaches: 0, impCov: 0, impMcs: 0, impMob: 0, impSticky: 0 };
+    FILE_LIST.forEach(f => {
+        const o = document.createElement("option");
+        o.value = f;
+        o.textContent = f.replace("filtered_mesh_output_", "").replace(".csv", "").replace(/_/g, " ");
+        sel.appendChild(o);
+    });
+    sel.addEventListener("change", e => loadData(e.target.value));
 
-            data.forEach(row => {
-                const rawSn = (row.ont_serial_no || row.serial_number || "").toString().toUpperCase();
-                if (!rawSn) return;
+    try {
+        const userRes = await fetch(USER_METADATA_FILE);
+        const userJson = await userRes.json();
+        userJson.forEach(u => { userMap[u.serial.toUpperCase()] = u.user; });
+        await loadData("ALL");
+    } catch (err) {
+        console.error("Boot Error:", err);
+        document.getElementById("fleetDisplay").innerHTML = '<div style="color:var(--danger);text-align:center;padding:50px;">Failed to load user metadata. Check console.</div>';
+    }
+}
 
-                const friendlyUser = userMap[rawSn] || "Unassigned Household";
-                const host = row.host_name || row.station_mac || "UNK-NODE";
+// ==================== DATA LOADING ====================
+async function loadData(mode) {
+    const display = document.getElementById("fleetDisplay");
+    display.innerHTML = '<div style="text-align:center; padding:120px; color:var(--text-dim);"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>Parsing Mesh Telemetry...</div>';
 
-                // Map Serial to Friendly Name group
-                if (!mainFleet[friendlyUser]) {
-                    mainFleet[friendlyUser] = { nodes: {}, serial: rawSn };
-                }
-                if (!mainFleet[friendlyUser].nodes[host]) {
-                    mainFleet[friendlyUser].nodes[host] = [];
-                }
-                mainFleet[friendlyUser].nodes[host].push(row);
+    try {
+        let allRows = [];
+        if (mode === "ALL") {
+            for (const f of FILE_LIST) {
+                const res = await fetch(f);
+                const text = await res.text();
+                const { data } = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+                allRows = allRows.concat(data);
+            }
+        } else {
+            const res = await fetch(mode);
+            const text = await res.text();
+            const { data } = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+            allRows = data;
+        }
+        processData(allRows);
+    } catch (e) {
+        console.error("Load Error:", e);
+        display.innerHTML = '<div style="color:var(--danger);text-align:center;padding:50px;">Failed to load fleet data. Ensure CSV files are in the same directory.</div>';
+    }
+}
 
-                // Run Health Logic
-                const health = runDiagnostics(row);
-                const cCount = clean(row.total_no_of_clients || row.total_clients);
+// ==================== DATA PROCESSING ====================
+function processData(data) {
+    mainFleet = {};
+    allClientRows = [];
+    allPodRows = [];
+    globalStats = { clients: 0, nodes: 0, disc: 0, sticky: 0, mcs_sum: 0, mcs_count: 0, breaches: 0, impCov: 0, impMcs: 0, impMob: 0, impSticky: 0 };
 
-                globalStats.nodes++;
-                globalStats.clients += cCount;
-                globalStats.disc += clean(row.ap_with_high_client_disconnection);
-                globalStats.sticky += (clean(row.ap_with_high_no_of_sticky_client_2_with_good_coverage) + clean(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage));
-                globalStats.mcs_sum += clean(row.ap_with_poor_link_speed_mcs_rate);
-                
-                if (health.isCritical) globalStats.breaches++;
-                if (health.issues.cov) globalStats.impCov += cCount;
-                if (health.issues.mcs) globalStats.impMcs += cCount;
-                if (health.issues.mob) globalStats.impMob += cCount;
-                if (health.issues.sticky) globalStats.impSticky += cCount;
+    data.forEach(row => {
+        const rawSn = (row.ont_serial_no || "").toString().toUpperCase();
+        if (!rawSn) return;
+
+        const friendlyUser = userMap[rawSn] || "Unassigned (" + rawSn.substring(0,8) + ")";
+
+        if (isPodRow(row)) {
+            allPodRows.push({ ...row, _user: friendlyUser });
+        }
+        if (isClientRow(row)) {
+            allClientRows.push({ ...row, _user: friendlyUser });
+        }
+
+        const host = row.host_name || row.station_mac || row.mac_address || "UNK-NODE";
+
+        if (!mainFleet[friendlyUser]) {
+            mainFleet[friendlyUser] = { nodes: {}, pods: {}, serial: rawSn };
+        }
+
+        if (isClientRow(row)) {
+            if (!mainFleet[friendlyUser].nodes[host]) mainFleet[friendlyUser].nodes[host] = [];
+            mainFleet[friendlyUser].nodes[host].push(row);
+        }
+        if (isPodRow(row)) {
+            const podId = row.mac_address || "POD-" + rawSn;
+            if (!mainFleet[friendlyUser].pods[podId]) mainFleet[friendlyUser].pods[podId] = [];
+            mainFleet[friendlyUser].pods[podId].push(row);
+        }
+
+        // Health diagnostics on client rows
+        if (isClientRow(row)) {
+            const health = runDiagnostics(row);
+            const cCount = 1;
+
+            globalStats.nodes++;
+            globalStats.clients++;
+            globalStats.disc += clean(row.ap_with_high_client_disconnection);
+            globalStats.sticky += (isBreach(row.ap_with_high_no_of_sticky_client_2g_with_good_coverage) ? 1 : 0) + (isBreach(row.ap_with_high_no_of_sticky_client_5g_with_poor_coverage) ? 1 : 0);
+            globalStats.mcs_sum += clean(row.ap_with_poor_link_speed_mcs_rate);
+            globalStats.mcs_count++;
+
+            if (health.isCritical) globalStats.breaches++;
+            if (health.issues.cov) globalStats.impCov += cCount;
+            if (health.issues.mcs) globalStats.impMcs += cCount;
+            if (health.issues.mob) globalStats.impMob += cCount;
+            if (health.issues.sticky) globalStats.impSticky += cCount;
+        }
+    });
+
+    updateUI();
+    renderCharts();
+    renderFleet();
+}
+
+// ==================== DIAGNOSTICS ====================
+function runDiagnostics(row) {
+    const issues = {
+        cov: (clean(row.ap_with_poor_coverage_2 || row.ap_with_poor_coverage_2g) > 15 || clean(row.ap_with_poor_coverage_5 || row.ap_with_poor_coverage_5g) > 15),
+        mcs: (clean(row.ap_with_poor_link_speed_mcs_rate) > 20),
+        mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 5),
+        sticky: isBreach(row.ap_with_high_no_of_sticky_client_5g_with_poor_coverage) || isBreach(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage_breach)
+    };
+    return { isCritical: issues.cov || issues.mob || issues.sticky, issues };
+}
+
+function updateUI() {
+    document.getElementById('stat-total-clients').innerText = globalStats.clients.toLocaleString();
+    document.getElementById('stat-disc-count').innerText = globalStats.disc.toLocaleString();
+    document.getElementById('stat-sticky-total').innerText = globalStats.sticky.toLocaleString();
+    const eff = globalStats.mcs_count > 0 ? (100 - (globalStats.mcs_sum / globalStats.mcs_count)).toFixed(1) : 0;
+    document.getElementById('stat-mcs-avg').innerText = eff + '%';
+    document.getElementById('stat-breach-density').innerText = globalStats.breaches.toLocaleString();
+
+    document.getElementById('impact-cov').innerText = globalStats.impCov.toLocaleString();
+    document.getElementById('impact-mcs').innerText = globalStats.impMcs.toLocaleString();
+    document.getElementById('impact-mob').innerText = globalStats.impMob.toLocaleString();
+    document.getElementById('impact-sticky').innerText = globalStats.impSticky.toLocaleString();
+}
+
+// ==================== CHART RENDERING ====================
+function destroyCharts() {
+    Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
+    chartInstances = {};
+}
+
+function renderCharts() {
+    destroyCharts();
+
+    // 1. Band Distribution (TOT) - Doughnut
+    let tot2g = 0, tot5g = 0, totCount = 0;
+    allClientRows.forEach(r => {
+        const t2 = clean(r.tot_2g);
+        const t5 = clean(r.tot_5g);
+        if (t2 > 0 || t5 > 0) { tot2g += t2; tot5g += t5; totCount++; }
+    });
+    const avg2g = totCount > 0 ? (tot2g / totCount).toFixed(1) : 0;
+    const avg5g = totCount > 0 ? (tot5g / totCount).toFixed(1) : 0;
+
+    chartInstances.bandTOT = new Chart(document.getElementById('chartBandTOT'), {
+        type: 'doughnut',
+        data: {
+            labels: ['5 GHz TOT (' + avg5g + '%)', '2.4 GHz TOT (' + avg2g + '%)'],
+            datasets: [{ data: [parseFloat(avg5g), parseFloat(avg2g)], backgroundColor: [COLORS.cyanA, COLORS.orangeA], borderColor: [COLORS.cyan, COLORS.orange], borderWidth: 2, hoverOffset: 8 }]
+        },
+        options: { ...CHART_DEFAULTS, cutout: '60%' }
+    });
+
+    // 2. Client Capability - Doughnut
+    const capMap = { "WiFi 6E (EHT)": 0, "WiFi 6 (HE)": 0, "WiFi 5 (AC)": 0, "WiFi 4 (HT)": 0, "Legacy": 0 };
+    allClientRows.forEach(r => { capMap[getWifiStandard(r)]++; });
+
+    chartInstances.capability = new Chart(document.getElementById('chartCapability'), {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(capMap),
+            datasets: [{ data: Object.values(capMap), backgroundColor: [COLORS.purpleA, COLORS.cyanA, COLORS.blueA, COLORS.amberA, 'rgba(107,114,128,0.5)'], borderColor: [COLORS.purple, COLORS.cyan, COLORS.blue, COLORS.amber, '#6B7280'], borderWidth: 2, hoverOffset: 8 }]
+        },
+        options: { ...CHART_DEFAULTS, cutout: '60%' }
+    });
+
+    // 3. Pod Health - Doughnut
+    let podsOnline = 0, podsOffline = 0;
+    allPodRows.forEach(r => {
+        const dt = clean(r.ap_downtime_per);
+        if (dt > 50) podsOffline++; else podsOnline++;
+    });
+
+    chartInstances.podHealth = new Chart(document.getElementById('chartPodHealth'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Online (' + podsOnline + ')', 'Offline (' + podsOffline + ')'],
+            datasets: [{ data: [podsOnline, podsOffline], backgroundColor: [COLORS.greenA, COLORS.redA], borderColor: [COLORS.green, COLORS.red], borderWidth: 2, hoverOffset: 8 }]
+        },
+        options: { ...CHART_DEFAULTS, cutout: '60%' }
+    });
+
+    // Helper: aggregate per household
+    const houseLabels = Object.keys(mainFleet).map(u => truncLabel(u, 14));
+    const houseKeys = Object.keys(mainFleet);
+
+    function aggPerHouse(field2, field5, fallback2, fallback5) {
+        return houseKeys.map(user => {
+            let sum2 = 0, sum5 = 0, cnt = 0;
+            const nodes = mainFleet[user].nodes;
+            Object.values(nodes).forEach(records => {
+                records.forEach(r => {
+                    sum2 += clean(r[field2] || r[fallback2]);
+                    sum5 += clean(r[field5] || r[fallback5]);
+                    cnt++;
+                });
             });
+            return { v2: cnt > 0 ? (sum2 / cnt) : 0, v5: cnt > 0 ? (sum5 / cnt) : 0 };
+        });
+    }
 
-            updateUI();
-            renderFleet();
-        } catch (e) {
-            display.innerHTML = `<div style="color:var(--danger); text-align:center; padding:50px;">Failed to process fleet data. Check console.</div>`;
+    const barOpts = (stacked) => ({
+        ...CHART_DEFAULTS,
+        indexAxis: 'y',
+        scales: {
+            x: { stacked, grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#6B7280', font: { size: 10 } } },
+            y: { stacked, grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 10, family: "'Plus Jakarta Sans'" } } }
         }
-    }
+    });
 
-    /**
-     * DIAGNOSTIC ENGINE (CORTECA RULES)
-     */
-    function runDiagnostics(row) {
-        const issues = {
-            cov: (clean(row.ap_with_poor_coverage_2) > 15 || clean(row.ap_with_poor_coverage_5) > 15),
-            mcs: (clean(row.ap_with_poor_link_speed_mcs_rate) > 20),
-            mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 5),
-            sticky: isBreach(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage_breach)
-        };
+    // 4. Poor Coverage
+    const covData = aggPerHouse('ap_with_poor_coverage_2', 'ap_with_poor_coverage_5', 'ap_with_poor_coverage_2g', 'ap_with_poor_coverage_5g');
+    chartInstances.coverage = new Chart(document.getElementById('chartCoverage'), {
+        type: 'bar',
+        data: {
+            labels: houseLabels,
+            datasets: [
+                { label: '2.4 GHz', data: covData.map(d => d.v2.toFixed(2)), backgroundColor: COLORS.orangeA, borderColor: COLORS.orange, borderWidth: 1 },
+                { label: '5 GHz', data: covData.map(d => d.v5.toFixed(2)), backgroundColor: COLORS.cyanA, borderColor: COLORS.cyan, borderWidth: 1 }
+            ]
+        },
+        options: barOpts(true)
+    });
 
-        return { 
-            isCritical: issues.cov || issues.mob || issues.sticky, 
-            issues 
-        };
-    }
+    // 5. Poor SNR
+    const snrData = aggPerHouse('ap_with_poor_snr_sample_2', 'ap_with_poor_snr_sample_5', 'ap_with_poor_snr_sample_2g', 'ap_with_poor_snr_sample_5g');
+    chartInstances.snr = new Chart(document.getElementById('chartSNR'), {
+        type: 'bar',
+        data: {
+            labels: houseLabels,
+            datasets: [
+                { label: '2.4 GHz', data: snrData.map(d => d.v2.toFixed(2)), backgroundColor: COLORS.orangeA, borderColor: COLORS.orange, borderWidth: 1 },
+                { label: '5 GHz', data: snrData.map(d => d.v5.toFixed(2)), backgroundColor: COLORS.cyanA, borderColor: COLORS.cyan, borderWidth: 1 }
+            ]
+        },
+        options: barOpts(true)
+    });
 
-    function updateUI() {
-        document.getElementById('stat-total-clients').innerText = globalStats.clients.toLocaleString();
-        document.getElementById('stat-disc-count').innerText = globalStats.disc.toLocaleString();
-        document.getElementById('stat-sticky-total').innerText = globalStats.sticky.toLocaleString();
-        document.getElementById('stat-mcs-avg').innerText = (100 - (globalStats.mcs_sum / globalStats.nodes || 0)).toFixed(1) + '%';
-        document.getElementById('stat-breach-density').innerText = globalStats.breaches.toLocaleString();
+    // 6. Poor MCS Rate
+    const mcsData = aggPerHouse('ap_with_poor_link_speed_mcs_rate_2', 'ap_with_poor_link_speed_mcs_rate_5', 'ap_with_poor_link_speed_mcs_rate_2g', 'ap_with_poor_link_speed_mcs_rate_5g');
+    chartInstances.mcs = new Chart(document.getElementById('chartMCS'), {
+        type: 'bar',
+        data: {
+            labels: houseLabels,
+            datasets: [
+                { label: '2.4 GHz', data: mcsData.map(d => d.v2.toFixed(2)), backgroundColor: COLORS.orangeA, borderColor: COLORS.orange, borderWidth: 1 },
+                { label: '5 GHz', data: mcsData.map(d => d.v5.toFixed(2)), backgroundColor: COLORS.cyanA, borderColor: COLORS.cyan, borderWidth: 1 }
+            ]
+        },
+        options: barOpts(true)
+    });
 
-        document.getElementById('impact-cov').innerText = globalStats.impCov.toLocaleString();
-        document.getElementById('impact-mcs').innerText = globalStats.impMcs.toLocaleString();
-        document.getElementById('impact-mob').innerText = globalStats.impMob.toLocaleString();
-        document.getElementById('impact-sticky').innerText = globalStats.impSticky.toLocaleString();
-    }
+    // 7. Sticky Clients
+    const stickyData = houseKeys.map(user => {
+        let s2 = 0, s5 = 0;
+        Object.values(mainFleet[user].nodes).forEach(records => {
+            records.forEach(r => {
+                if (isBreach(r.ap_with_high_no_of_sticky_client_2g_with_good_coverage)) s2++;
+                if (isBreach(r.ap_with_high_no_of_sticky_client_5g_with_poor_coverage)) s5++;
+            });
+        });
+        return { s2, s5 };
+    });
 
-    /**
-     * RENDERING COMPONENT
-     */
-    function renderFleet(query = "") {
-        const display = document.getElementById("fleetDisplay");
-        display.innerHTML = "";
-        const q = query.toLowerCase();
+    chartInstances.sticky = new Chart(document.getElementById('chartSticky'), {
+        type: 'bar',
+        data: {
+            labels: houseLabels,
+            datasets: [
+                { label: '2.4G Good Cov Sticky', data: stickyData.map(d => d.s2), backgroundColor: COLORS.amberA, borderColor: COLORS.amber, borderWidth: 1 },
+                { label: '5G Poor Cov Sticky', data: stickyData.map(d => d.s5), backgroundColor: COLORS.redA, borderColor: COLORS.red, borderWidth: 1 }
+            ]
+        },
+        options: {
+            ...CHART_DEFAULTS,
+            scales: {
+                x: { grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
+                y: { grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#6B7280', font: { size: 10 } }, beginAtZero: true }
+            }
+        }
+    });
 
-        Object.keys(mainFleet).forEach((user, idx) => {
-            const serial = mainFleet[user].serial;
-            if (q && !user.toLowerCase().includes(q) && !serial.toLowerCase().includes(q)) return;
+    // 8. Disconnections
+    const discData = houseKeys.map(user => {
+        let total = 0;
+        Object.values(mainFleet[user].nodes).forEach(records => {
+            records.forEach(r => { total += clean(r.ap_with_high_client_disconnection); });
+        });
+        return total;
+    });
 
-            let houseCritical = false;
-            const nodeItems = Object.keys(mainFleet[user].nodes).map(nodeId => {
-                const records = mainFleet[user].nodes[nodeId];
-                const last = records[records.length - 1];
-                const health = runDiagnostics(last);
-                if (health.isCritical) houseCritical = true;
+    chartInstances.disconnect = new Chart(document.getElementById('chartDisconnect'), {
+        type: 'bar',
+        data: {
+            labels: houseLabels,
+            datasets: [{ label: 'Disconnections', data: discData, backgroundColor: COLORS.redA, borderColor: COLORS.red, borderWidth: 1, borderRadius: 4 }]
+        },
+        options: {
+            ...CHART_DEFAULTS,
+            scales: {
+                x: { grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
+                y: { grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#6B7280', font: { size: 10 } }, beginAtZero: true }
+            }
+        }
+    });
 
-                return `
-                <div class="node-row" style="${health.isCritical ? 'border-left:5px solid var(--danger);' : ''}">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
-                        <div>
-                            <div style="font-weight:900; color:var(--accent); font-size:15px; letter-spacing:0.5px;">${nodeId}</div>
-                            <div style="font-size:10px; color:var(--text-muted); font-family:monospace; margin-top:4px;">${last.station_mac || 'MAC_UNKNOWN'}</div>
+    // 9. Pod Uptime
+    const podLabels = [];
+    const podUptimes = [];
+    const podColors = [];
+    Object.keys(mainFleet).forEach(user => {
+        Object.keys(mainFleet[user].pods).forEach(podId => {
+            const records = mainFleet[user].pods[podId];
+            const last = records[records.length - 1];
+            const uptime = 100 - clean(last.ap_downtime_per);
+            podLabels.push(truncLabel(user, 10) + " | " + podId.substring(0, 8));
+            podUptimes.push(uptime.toFixed(1));
+            podColors.push(uptime > 90 ? COLORS.greenA : uptime > 50 ? COLORS.amberA : COLORS.redA);
+        });
+    });
+
+    chartInstances.uptime = new Chart(document.getElementById('chartUptime'), {
+        type: 'bar',
+        data: {
+            labels: podLabels,
+            datasets: [{ label: 'Uptime %', data: podUptimes, backgroundColor: podColors, borderColor: podColors.map(c => c.replace('0.7', '1')), borderWidth: 1, borderRadius: 4 }]
+        },
+        options: {
+            ...CHART_DEFAULTS,
+            indexAxis: 'y',
+            scales: {
+                x: { max: 100, grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#6B7280', font: { size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 9, family: "'Plus Jakarta Sans'" } } }
+            }
+        }
+    });
+
+    // 10. Roaming History (proxy - disconnections)
+    chartInstances.roaming = new Chart(document.getElementById('chartRoaming'), {
+        type: 'bar',
+        data: {
+            labels: houseLabels,
+            datasets: [{ label: 'Disconnections (Roaming Proxy)', data: discData, backgroundColor: COLORS.purpleA, borderColor: COLORS.purple, borderWidth: 1, borderRadius: 4 }]
+        },
+        options: {
+            ...CHART_DEFAULTS,
+            scales: {
+                x: { grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#9CA3AF', font: { size: 9 } } },
+                y: { grid: { color: 'rgba(42,50,65,0.4)' }, ticks: { color: '#6B7280', font: { size: 9 } }, beginAtZero: true }
+            },
+            plugins: { ...CHART_DEFAULTS.plugins, legend: { display: false } }
+        }
+    });
+}
+
+// ==================== FLEET RENDERING ====================
+function renderFleet(query = "") {
+    const display = document.getElementById("fleetDisplay");
+    display.innerHTML = "";
+    const q = query.toLowerCase();
+
+    Object.keys(mainFleet).forEach((user, idx) => {
+        const serial = mainFleet[user].serial;
+        const allNodes = mainFleet[user].nodes;
+        const allPods = mainFleet[user].pods;
+
+        // Search filter
+        if (q) {
+            let match = user.toLowerCase().includes(q) || serial.toLowerCase().includes(q);
+            if (!match) {
+                Object.values(allNodes).forEach(records => {
+                    records.forEach(r => {
+                        if ((r.type || "").toLowerCase().includes(q) || (r.manufacturer || "").toLowerCase().includes(q) || (r.model || "").toLowerCase().includes(q)) match = true;
+                    });
+                });
+            }
+            if (!match) return;
+        }
+
+        let houseCritical = false;
+        let totalClients = Object.values(allNodes).reduce((s, recs) => s + recs.length, 0);
+
+        // Build node items
+        const nodeItems = Object.keys(allNodes).map(nodeId => {
+            const records = allNodes[nodeId];
+            const last = records[records.length - 1];
+            const health = runDiagnostics(last);
+            if (health.isCritical) houseCritical = true;
+
+            const wifiClass = getWifiBadgeClass(last);
+            const wifiLabel = getWifiStandard(last);
+            const bandLabel = getBandLabel(last);
+            const bandClass = clean(last.connectedband) === 1 ? 'band-5g' : 'band-2g';
+            const devType = last.type || "UNKNOWN";
+            const devMfr = last.manufacturer || "";
+            const devModel = last.model || "";
+            const devIcon = devType === "PHONE" ? "fa-mobile-alt" : devType === "LAPTOP" || devType === "PC" ? "fa-laptop" : devType === "STREAMING_DEVICE" ? "fa-tv" : "fa-microchip";
+
+            return `
+            <div class="node-row" style="${health.isCritical ? 'border-left:5px solid var(--danger);' : ''}">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px;">
+                    <div>
+                        <div style="font-weight:900; color:var(--accent); font-size:15px; letter-spacing:0.5px;">${nodeId}</div>
+                        <div style="font-size:10px; color:var(--text-muted); font-family:monospace; margin-top:4px;">${last.station_mac || 'MAC_UNKNOWN'}</div>
+                        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+                            <span class="device-badge"><i class="fas ${devIcon}"></i> ${devType}</span>
+                            ${devMfr ? '<span class="device-badge">' + devMfr + '</span>' : ''}
+                            ${devModel ? '<span class="device-badge">' + devModel + '</span>' : ''}
+                            <span class="wifi-badge ${wifiClass}">${wifiLabel}</span>
+                            <span class="band-indicator ${bandClass}">${bandLabel}</span>
                         </div>
-                        <button class="btn-download" style="padding:5px 12px; font-size:10px;" onclick="showTrace('${user}', '${nodeId}', ${records.length-1})">DIAGNOSTICS</button>
                     </div>
-                    <div class="telemetry-matrix">
-                        <div class="matrix-section">
-                            <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Radio Signal</div>
-                            <div class="data-row"><span>SNR 2.4 / 5G</span><span class="data-val">${last.ap_with_poor_snr_sample_2}% / ${last.ap_with_poor_snr_sample_5}%</span></div>
-                            <div class="data-row"><span>Cov 2.4 / 5G</span><span class="data-val">${last.ap_with_poor_coverage_2}% / ${last.ap_with_poor_coverage_5}%</span></div>
-                        </div>
-                        <div class="matrix-section">
-                            <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Throughput</div>
-                            <div class="data-row"><span>MCS Breach</span><span class="data-val" style="${health.issues.mcs ? 'color:var(--warning)' : ''}">${last.ap_with_poor_link_speed_mcs_rate}%</span></div>
-                            <div class="data-row"><span>Clients</span><span class="data-val">${last.total_no_of_clients || 0}</span></div>
-                        </div>
-                        <div class="matrix-section">
-                            <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Stability</div>
-                            <div class="data-row"><span>Disconnects</span><span class="data-val" style="${health.issues.mob ? 'color:var(--danger)' : ''}">${last.ap_with_high_client_disconnection}</span></div>
-                            <div class="data-row"><span>Sticky 5G</span><span class="data-val">${last.ap_with_high_no_of_sticky_client_5_with_poor_coverage}</span></div>
-                        </div>
+                    <button class="btn-download" style="padding:5px 12px; font-size:10px;" onclick="showTrace('${user.replace(/'/g, "\\'")}', '${nodeId.replace(/'/g, "\\'")}', ${records.length-1})">DIAGNOSTICS</button>
+                </div>
+                <div class="telemetry-matrix">
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Radio Signal</div>
+                        <div class="data-row"><span>SNR 2.4 / 5G</span><span class="data-val">${pct(last.ap_with_poor_snr_sample_2 || last.ap_with_poor_snr_sample_2g)} / ${pct(last.ap_with_poor_snr_sample_5 || last.ap_with_poor_snr_sample_5g)}</span></div>
+                        <div class="data-row"><span>Cov 2.4 / 5G</span><span class="data-val">${pct(last.ap_with_poor_coverage_2 || last.ap_with_poor_coverage_2g)} / ${pct(last.ap_with_poor_coverage_5 || last.ap_with_poor_coverage_5g)}</span></div>
+                        <div class="data-row"><span>TOT 2.4 / 5G</span><span class="data-val">${pct(last.tot_2g)} / ${pct(last.tot_5g)}</span></div>
                     </div>
-                </div>`;
-            }).join('');
-
-            const card = document.createElement("div");
-            card.className = "household-card";
-            card.innerHTML = `
-                <div class="household-trigger" onclick="toggle('h-${idx}')">
-                    <div style="display:flex; align-items:center;">
-                        <span class="status-dot ${houseCritical ? 'status-critical' : 'status-optimal'}"></span>
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-weight:800; font-size:17px; color:var(--text-main);">${user}</span>
-                            <span style="font-size:11px; color:var(--text-dim); font-family:monospace;">${serial}</span>
-                        </div>
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Throughput</div>
+                        <div class="data-row"><span>MCS Rate</span><span class="data-val" style="${health.issues.mcs ? 'color:var(--warning)' : ''}">${pct(last.ap_with_poor_link_speed_mcs_rate)}</span></div>
+                        <div class="data-row"><span>MCS 2.4 / 5G</span><span class="data-val">${pct(last.ap_with_poor_link_speed_mcs_rate_2 || last.ap_with_poor_link_speed_mcs_rate_2g)} / ${pct(last.ap_with_poor_link_speed_mcs_rate_5 || last.ap_with_poor_link_speed_mcs_rate_5g)}</span></div>
                     </div>
-                    <div style="display:flex; gap:25px; align-items:center;">
-                        <div style="text-align:right;">
-                            <div style="font-size:9px; color:var(--text-muted); font-weight:800;">TOPOLOGY</div>
-                            <div style="font-weight:800; font-size:14px;">${Object.keys(mainFleet[user].nodes).length} NODES</div>
-                        </div>
-                        <i class="fas fa-chevron-down" id="icon-h-${idx}" style="color:var(--text-muted)"></i>
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px; color:var(--text-dim)">Stability</div>
+                        <div class="data-row"><span>Disconnects</span><span class="data-val" style="${health.issues.mob ? 'color:var(--danger)' : ''}">${last.ap_with_high_client_disconnection}</span></div>
+                        <div class="data-row"><span>Sticky 2.4G</span><span class="data-val">${last.ap_with_high_no_of_sticky_client_2g_with_good_coverage || 'N/A'}</span></div>
+                        <div class="data-row"><span>Sticky 5G</span><span class="data-val">${last.ap_with_high_no_of_sticky_client_5g_with_poor_coverage || 'N/A'}</span></div>
                     </div>
                 </div>
-                <div id="h-${idx}" class="node-vault">${nodeItems}</div>`;
-            display.appendChild(card);
+            </div>`;
+        }).join('');
+
+        // Build pod items
+        const podItems = Object.keys(allPods).map(podId => {
+            const records = allPods[podId];
+            const last = records[records.length - 1];
+            const uptime = (100 - clean(last.ap_downtime_per)).toFixed(1);
+            const isDown = clean(last.ap_downtime_per) > 50;
+
+            return `
+            <div class="node-row" style="border-left:4px solid ${isDown ? 'var(--danger)' : 'var(--success)'};">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div>
+                        <div style="font-weight:800; color:var(--text-dim); font-size:12px; letter-spacing:1px;">POD: ${podId}</div>
+                        <div style="font-size:10px; color:var(--text-muted); font-family:monospace; margin-top:3px;">Stations: ${last.station_count || 0} | Downtime Hours: ${last.downtime_hours_used || 'N/A'}</div>
+                    </div>
+                    <span class="device-badge" style="${isDown ? 'color:var(--danger);border-color:var(--danger);' : 'color:var(--success);border-color:var(--success);'}"><i class="fas ${isDown ? 'fa-times-circle' : 'fa-check-circle'}"></i> ${isDown ? 'OFFLINE' : 'ONLINE'} (${uptime}% uptime)</span>
+                </div>
+                <div class="telemetry-matrix" style="grid-template-columns: repeat(4, 1fr);">
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px;">CPU / Memory</div>
+                        <div class="data-row"><span>CPU</span><span class="data-val">${pct(last.ap_with_high_cpu_utilisation)}</span></div>
+                        <div class="data-row"><span>Memory</span><span class="data-val">${pct(last.ap_with_high_memory_packet_error)}</span></div>
+                    </div>
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px;">Interference</div>
+                        <div class="data-row"><span>2.4G</span><span class="data-val">${pct(last.ap_with_high_interference_2)}</span></div>
+                        <div class="data-row"><span>5G</span><span class="data-val">${pct(last.ap_with_high_interference_5)}</span></div>
+                    </div>
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px;">Channel OBSS</div>
+                        <div class="data-row"><span>2.4G</span><span class="data-val">${pct(last.channelobss2_4)}</span></div>
+                        <div class="data-row"><span>5G</span><span class="data-val">${pct(last.channelobss5)}</span></div>
+                    </div>
+                    <div class="matrix-section">
+                        <div class="impact-title" style="font-size:9px;">Channel Util</div>
+                        <div class="data-row"><span>2.4G</span><span class="data-val">${pct(last.ap_with_high_channel_utilisation_2_pct)}</span></div>
+                        <div class="data-row"><span>5G</span><span class="data-val">${pct(last.ap_with_high_channel_congestion_5_pct)}</span></div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        const card = document.createElement("div");
+        card.className = "household-card";
+        card.innerHTML = `
+            <div class="household-trigger" onclick="toggle('h-${idx}')">
+                <div style="display:flex; align-items:center;">
+                    <span class="status-dot ${houseCritical ? 'status-critical' : 'status-optimal'}"></span>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-weight:800; font-size:17px; color:var(--text-main);">${user}</span>
+                        <span style="font-size:11px; color:var(--text-dim); font-family:monospace;">${serial}</span>
+                    </div>
+                </div>
+                <div style="display:flex; gap:25px; align-items:center;">
+                    <div style="text-align:right;">
+                        <div style="font-size:9px; color:var(--text-muted); font-weight:800;">TOPOLOGY</div>
+                        <div style="font-weight:800; font-size:14px;">${Object.keys(allNodes).length} CLIENTS &middot; ${Object.keys(allPods).length} PODS</div>
+                    </div>
+                    <i class="fas fa-chevron-down" id="icon-h-${idx}" style="color:var(--text-muted); transition:0.3s;"></i>
+                </div>
+            </div>
+            <div id="h-${idx}" class="node-vault">
+                ${podItems ? '<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-top:20px;margin-bottom:5px;letter-spacing:1px;"><i class="fas fa-server" style="margin-right:6px;"></i>Pod Infrastructure</div>' + podItems : ''}
+                ${nodeItems ? '<div style="font-size:11px;font-weight:800;color:var(--text-muted);text-transform:uppercase;margin-top:20px;margin-bottom:5px;letter-spacing:1px;"><i class="fas fa-wifi" style="margin-right:6px;"></i>Connected Clients</div>' + nodeItems : ''}
+            </div>`;
+        display.appendChild(card);
+    });
+
+    if (display.children.length === 0) {
+        display.innerHTML = '<div style="text-align:center; padding:80px; color:var(--text-muted);"><i class="fas fa-search fa-2x" style="margin-bottom:15px;"></i><br>No matching households found.</div>';
+    }
+}
+
+// ==================== INTERACTIONS ====================
+function toggle(id) {
+    const e = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    const isOpen = e.style.display === "block";
+    e.style.display = isOpen ? "none" : "block";
+    icon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
+}
+
+function showTrace(user, node, idx) {
+    const data = mainFleet[user].nodes[node][idx];
+    document.getElementById("nodeTitle").innerText = user;
+    document.getElementById("nodeSubtitle").innerText = "Node: " + node + " | Serial: " + mainFleet[user].serial;
+
+    const grid = document.getElementById("metaGrid");
+    grid.innerHTML = "";
+    Object.entries(data).forEach(([key, val]) => {
+        if (key.startsWith("_")) return;
+        grid.innerHTML += `
+            <div class="meta-box">
+                <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:800;">${key.replace(/_/g, " ")}</span>
+                <span style="font-family:monospace; font-size:14px; font-weight:700; color:var(--accent);">${val ?? 'N/A'}</span>
+            </div>`;
+    });
+    document.getElementById("metaModal").style.display = "block";
+}
+
+function closeMeta() { document.getElementById("metaModal").style.display = "none"; }
+
+function exportData() {
+    const flattened = [];
+    Object.keys(mainFleet).forEach(user => {
+        Object.keys(mainFleet[user].nodes).forEach(node => {
+            const logs = mainFleet[user].nodes[node];
+            const last = logs[logs.length - 1];
+            flattened.push({ Username: user, WiFi_Standard: getWifiStandard(last), Band: getBandLabel(last), ...last });
         });
-    }
-
-    function toggle(id) {
-        const e = document.getElementById(id);
-        const icon = document.getElementById('icon-' + id);
-        const isOpen = e.style.display === "block";
-        e.style.display = isOpen ? "none" : "block";
-        icon.style.transform = isOpen ? "rotate(0deg)" : "rotate(180deg)";
-    }
-
-    function showTrace(user, node, idx) {
-        const data = mainFleet[user].nodes[node][idx];
-        document.getElementById("nodeTitle").innerText = user;
-        document.getElementById("nodeSubtitle").innerText = `Node ID: ${node} | Physical Serial: ${mainFleet[user].serial}`;
-        
-        const grid = document.getElementById("metaGrid");
-        grid.innerHTML = "";
-        
-        Object.entries(data).forEach(([key, val]) => {
-            grid.innerHTML += `
-                <div class="meta-box">
-                    <span style="font-size:10px; color:var(--text-muted); text-transform:uppercase; font-weight:800;">${key.replace(/_/g, " ")}</span>
-                    <span style="font-family:monospace; font-size:14px; font-weight:700; color:var(--accent);">${val ?? 'N/A'}</span>
-                </div>`;
+        Object.keys(mainFleet[user].pods).forEach(podId => {
+            const logs = mainFleet[user].pods[podId];
+            const last = logs[logs.length - 1];
+            flattened.push({ Username: user, Record_Type: "POD", Pod_MAC: podId, Uptime_Pct: (100 - clean(last.ap_downtime_per)).toFixed(1), ...last });
         });
-        document.getElementById("metaModal").style.display = "block";
+    });
+    const csv = Papa.unparse(flattened);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Fleet_Audit_v8_" + new Date().toISOString().split('T')[0] + ".csv";
+    a.click();
+}
+
+document.getElementById("masterFilter").addEventListener("input", e => renderFleet(e.target.value));
+
+
+// ==================== THEME TOGGLE ====================
+function toggleTheme() {
+    const isLight = document.body.classList.toggle('light-theme');
+    localStorage.setItem('meshAlphaTheme', isLight ? 'light' : 'dark');
+    updateThemeUI(isLight);
+    // Re-render charts with updated text colors
+    if (allClientRows.length > 0 || allPodRows.length > 0) renderCharts();
+}
+
+function updateThemeUI(isLight) {
+    document.getElementById('themeIcon').className = isLight ? 'fas fa-sun' : 'fas fa-moon';
+    document.getElementById('themeLabel').innerText = isLight ? 'LIGHT' : 'DARK';
+}
+
+function initTheme() {
+    const saved = localStorage.getItem('meshAlphaTheme');
+    if (saved === 'light') {
+        document.body.classList.add('light-theme');
+        updateThemeUI(true);
     }
+}
 
-    function closeMeta() { document.getElementById("metaModal").style.display = "none"; }
+// ==================== PDF EXPORT ====================
+async function exportPDF() {
+    const overlay = document.getElementById('exportOverlay');
+    const overlayText = document.getElementById('exportText');
+    overlay.classList.add('active');
+    overlayText.innerText = 'Generating PDF Report...';
 
-    function exportData() {
-        const flattened = [];
-        Object.keys(mainFleet).forEach(user => {
-            Object.keys(mainFleet[user].nodes).forEach(node => {
-                const logs = mainFleet[user].nodes[node];
-                const last = logs[logs.length-1];
-                flattened.push({ Username: user, ...last });
-            });
+    try {
+        await new Promise(r => setTimeout(r, 300));
+        const container = document.querySelector('.container');
+        const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0B0E14';
+        const canvas = await html2canvas(container, {
+            scale: 1.5,
+            useCORS: true,
+            backgroundColor: bgColor,
+            logging: false,
+            windowWidth: container.scrollWidth,
+            windowHeight: container.scrollHeight
         });
-        const csv = Papa.unparse(flattened);
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Fleet_Audit_${new Date().toISOString().split('T')[0]}.csv`;
-        a.click();
-    }
 
-    document.getElementById("masterFilter").addEventListener("input", e => renderFleet(e.target.value));
-    
-    // START SYSTEM
-    boot();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const margin = 10;
+        const headerH = 12;
+        const usableH = pageH - margin * 2 - headerH;
+        const usableW = pageW - margin * 2;
+
+        const imgW = usableW;
+        const imgH = (canvas.height * imgW) / canvas.width;
+        const totalPages = Math.ceil(imgH / usableH);
+        const dateStr = new Date().toLocaleDateString();
+
+        for (let i = 0; i < totalPages; i++) {
+            if (i > 0) pdf.addPage();
+
+            // Branded header
+            pdf.setFillColor(21, 26, 35);
+            pdf.rect(0, 0, pageW, headerH + margin, 'F');
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(11);
+            pdf.setTextColor(59, 130, 246);
+            pdf.text('MESHALPHA', margin, margin + 5);
+            pdf.setTextColor(156, 163, 175);
+            pdf.setFontSize(8);
+            pdf.text('Fleet Report | ' + dateStr + ' | Page ' + (i + 1) + '/' + totalPages, pageW - margin, margin + 5, { align: 'right' });
+
+            // Content slice
+            const srcY = i * (canvas.height * usableH / imgH);
+            const srcH = Math.min(canvas.height * usableH / imgH, canvas.height - srcY);
+
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = canvas.width;
+            sliceCanvas.height = srcH;
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+
+            const sliceData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+            const sliceH = (srcH * imgW) / canvas.width;
+            pdf.addImage(sliceData, 'JPEG', margin, margin + headerH, imgW, sliceH);
+        }
+
+        pdf.save('MeshAlpha_Fleet_Report_' + new Date().toISOString().split('T')[0] + '.pdf');
+    } catch (err) {
+        console.error('PDF Export Error:', err);
+        alert('PDF export failed. See console for details.');
+    } finally {
+        overlay.classList.remove('active');
+    }
+}
+
+// ==================== PNG EXPORT ====================
+async function exportPNG() {
+    const overlay = document.getElementById('exportOverlay');
+    const overlayText = document.getElementById('exportText');
+    overlay.classList.add('active');
+    overlayText.innerText = 'Capturing Analytics Charts...';
+
+    try {
+        await new Promise(r => setTimeout(r, 300));
+        const bgColor = getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0B0E14';
+
+        // Build a temp wrapper cloning key dashboard sections
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:absolute;left:-9999px;top:0;background:' + bgColor + ';padding:30px;width:1600px;';
+        document.body.appendChild(wrapper);
+
+        // Clone impact summary
+        const impact = document.querySelector('.impact-summary');
+        if (impact) wrapper.appendChild(impact.cloneNode(true));
+
+        // Clone fleet stats
+        const stats = document.querySelector('.fleet-stats');
+        if (stats) wrapper.appendChild(stats.cloneNode(true));
+
+        // Clone chart heading + chart sections
+        const heading = document.querySelector('.charts-heading');
+        if (heading) wrapper.appendChild(heading.cloneNode(true));
+        document.querySelectorAll('.charts-section').forEach(s => wrapper.appendChild(s.cloneNode(true)));
+
+        const canvas = await html2canvas(wrapper, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: bgColor,
+            logging: false
+        });
+
+        document.body.removeChild(wrapper);
+
+        const link = document.createElement('a');
+        link.download = 'MeshAlpha_Analytics_' + new Date().toISOString().split('T')[0] + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (err) {
+        console.error('PNG Export Error:', err);
+        alert('PNG export failed. See console for details.');
+    } finally {
+        overlay.classList.remove('active');
+    }
+}
+
+initTheme();
+
+// START
+boot();
 </script>
+
+<!-- Export Overlay -->
+<div class="export-overlay" id="exportOverlay">
+    <div class="export-spinner"></div>
+    <div class="export-text" id="exportText">Generating Export...</div>
+</div>
 
 </body>
 </html>
