@@ -210,79 +210,73 @@
      * DATA INGESTION & PROCESSING
      */
     async function ingestFleet(path) {
-    const display = document.getElementById("fleetDisplay");
-    display.innerHTML = `<div style="text-align:center; padding:120px; color:var(--text-dim);"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>Parsing Mesh Telemetry...</div>`;
+        const display = document.getElementById("fleetDisplay");
+        display.innerHTML = `<div style="text-align:center; padding:120px; color:var(--text-dim);"><i class="fas fa-circle-notch fa-spin fa-2x"></i><br><br>Parsing Mesh Telemetry...</div>`;
 
-    try {
-        const res = await fetch(path);
-        const csvText = await res.text();
-        const { data } = Papa.parse(csvText, { header: true, dynamicTyping: true, skipEmptyLines: true });
+        try {
+            const res = await fetch(path);
+            const csvText = await res.text();
+            const { data } = Papa.parse(csvText, { header: true, dynamicTyping: true, skipEmptyLines: true });
 
-        mainFleet = {};
-        globalStats = { clients: 0, nodes: 0, disc: 0, sticky: 0, mcs_sum: 0, breaches: 0, impCov: 0, impMcs: 0, impMob: 0, impSticky: 0 };
+            mainFleet = {};
+            globalStats = { clients: 0, nodes: 0, disc: 0, sticky: 0, mcs_sum: 0, breaches: 0, impCov: 0, impMcs: 0, impMob: 0, impSticky: 0 };
 
-        data.forEach(row => {
-            const rawSn = (row.ont_serial_no || row.serial_number || "").toString().toUpperCase();
-            if (!rawSn) return;
+            data.forEach(row => {
+                const rawSn = (row.ont_serial_no || row.serial_number || "").toString().toUpperCase();
+                if (!rawSn) return;
 
-            const friendlyUser = userMap[rawSn] || "Unassigned Household";
-            const host = row.host_name || row.station_mac || "UNK-NODE";
+                const friendlyUser = userMap[rawSn] || "Unassigned Household";
+                const host = row.host_name || row.station_mac || "UNK-NODE";
 
-            if (!mainFleet[friendlyUser]) {
-                mainFleet[friendlyUser] = { nodes: {}, serial: rawSn };
-            }
-            if (!mainFleet[friendlyUser].nodes[host]) {
-                mainFleet[friendlyUser].nodes[host] = [];
-            }
-            mainFleet[friendlyUser].nodes[host].push(row);
+                // Map Serial to Friendly Name group
+                if (!mainFleet[friendlyUser]) {
+                    mainFleet[friendlyUser] = { nodes: {}, serial: rawSn };
+                }
+                if (!mainFleet[friendlyUser].nodes[host]) {
+                    mainFleet[friendlyUser].nodes[host] = [];
+                }
+                mainFleet[friendlyUser].nodes[host].push(row);
 
-            // Corrected Field: row.tot_overall instead of row.total_no_of_clients
-            const health = runDiagnostics(row);
-            const cCount = clean(row.tot_overall); 
+                // Run Health Logic
+                const health = runDiagnostics(row);
+                const cCount = clean(row.total_no_of_clients || row.total_clients);
 
-            globalStats.nodes++;
-            globalStats.clients += cCount;
-            globalStats.disc += clean(row.ap_with_high_client_disconnection);
-            
-            // Corrected Fields: Using _2g and _5g suffixes
-            globalStats.sticky += (clean(row.ap_with_high_no_of_sticky_client_2g_with_good_coverage) + 
-                                  clean(row.ap_with_high_no_of_sticky_client_5g_with_poor_coverage));
-            
-            globalStats.mcs_sum += clean(row.ap_with_poor_link_speed_mcs_rate);
-            
-            if (health.isCritical) globalStats.breaches++;
-            if (health.issues.cov) globalStats.impCov += cCount;
-            if (health.issues.mcs) globalStats.impMcs += cCount;
-            if (health.issues.mob) globalStats.impMob += cCount;
-            if (health.issues.sticky) globalStats.impSticky += cCount;
-        });
+                globalStats.nodes++;
+                globalStats.clients += cCount;
+                globalStats.disc += clean(row.ap_with_high_client_disconnection);
+                globalStats.sticky += (clean(row.ap_with_high_no_of_sticky_client_2_with_good_coverage) + clean(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage));
+                globalStats.mcs_sum += clean(row.ap_with_poor_link_speed_mcs_rate);
+                
+                if (health.isCritical) globalStats.breaches++;
+                if (health.issues.cov) globalStats.impCov += cCount;
+                if (health.issues.mcs) globalStats.impMcs += cCount;
+                if (health.issues.mob) globalStats.impMob += cCount;
+                if (health.issues.sticky) globalStats.impSticky += cCount;
+            });
 
-        updateUI();
-        renderFleet();
-    } catch (e) {
-        console.error(e);
-        display.innerHTML = `<div style="color:var(--danger); text-align:center; padding:50px;">Failed to process fleet data. Check console.</div>`;
+            updateUI();
+            renderFleet();
+        } catch (e) {
+            display.innerHTML = `<div style="color:var(--danger); text-align:center; padding:50px;">Failed to process fleet data. Check console.</div>`;
+        }
     }
-}
 
     /**
      * DIAGNOSTIC ENGINE (CORTECA RULES)
      */
     function runDiagnostics(row) {
-    const issues = {
-        // Corrected: ap_with_poor_coverage_2g / 5g
-        cov: (clean(row.ap_with_poor_coverage_2g) > 15 || clean(row.ap_with_poor_coverage_5g) > 15),
-        mcs: (clean(row.ap_with_poor_link_speed_mcs_rate) > 20),
-        mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 5),
-        // Corrected: ap_with_high_no_of_sticky_client_5g_with_poor_coverage_breach
-        sticky: isBreach(row.ap_with_high_no_of_sticky_client_5g_with_poor_coverage_breach)
-    };
+        const issues = {
+            cov: (clean(row.ap_with_poor_coverage_2) > 15 || clean(row.ap_with_poor_coverage_5) > 15),
+            mcs: (clean(row.ap_with_poor_link_speed_mcs_rate) > 20),
+            mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 5),
+            sticky: isBreach(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage_breach)
+        };
 
-    return { 
-        isCritical: issues.cov || issues.mob || issues.sticky, 
-        issues 
-    };
-}   
+        return { 
+            isCritical: issues.cov || issues.mob || issues.sticky, 
+            issues 
+        };
+    }
 
     function updateUI() {
         document.getElementById('stat-total-clients').innerText = globalStats.clients.toLocaleString();
