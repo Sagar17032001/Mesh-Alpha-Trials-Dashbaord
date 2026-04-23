@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshAlpha | Enterprise Fleet Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg: #07090E; --card: #11151C; --card-hover: #161B24; --border: #1F2633;
+            --accent: #00D1FF; --accent-glow: rgba(0, 209, 255, 0.15);
+            --text-main: #FFFFFF; --text-dim: #94A3B8; --text-muted: #475569;
+            --danger: #FF4D4D; --danger-bg: rgba(255, 77, 77, 0.1);
+            --warning: #F59E0B; --warning-bg: rgba(245, 158, 11, 0.1);
+            --success: #10B981; --success-bg: rgba(16, 185, 129, 0.1);
+            --mono: 'JetBrains Mono', monospace;
+        }
+
+        body { background: var(--bg); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; padding-bottom: 50px; -webkit-font-smoothing: antialiased; }
+        
+        .header { background: rgba(11, 15, 22, 0.85); padding: 0.8rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; backdrop-filter: blur(15px); }
+        .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+        .brand span { color: var(--accent); }
+        
+        .container { padding: 25px; max-width: 1650px; margin: 0 auto; }
+        
+        /* Command Center Controls */
+        .control-strip { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 15px 25px; margin-bottom: 25px; display: flex; gap: 20px; align-items: center; justify-content: space-between; }
+        .search-bar { background: var(--bg); border: 1px solid var(--border); padding: 12px 20px; border-radius: 10px; color: white; width: 350px; outline: none; transition: 0.2s; }
+        .search-bar:focus { border-color: var(--accent); box-shadow: 0 0 10px var(--accent-glow); }
+        
+        .file-dropdown { background: var(--bg); color: var(--text-main); border: 1px solid var(--border); padding: 10px 15px; border-radius: 10px; font-size: 12px; cursor: pointer; }
+
+        /* KPI Blocks */
+        .impact-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
+        .impact-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; position: relative; transition: 0.3s; overflow: hidden; }
+        .impact-card::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: var(--border); }
+        .impact-card.crit::after { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+        .impact-card.warn::after { background: var(--warning); }
+        
+        .impact-title { font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+        .impact-value { font-family: var(--mono); font-size: 32px; font-weight: 700; color: var(--text-main); }
+        .impact-desc { font-size: 11px; color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
+
+        /* Fleet Stats */
+        .fleet-stats { display: flex; gap: 15px; margin-bottom: 25px; }
+        .stat-box { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .stat-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; margin-top: 4px; }
+
+        /* Household Cards */
+        .household-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; transition: 0.2s; overflow: hidden; }
+        .household-card:hover { border-color: var(--accent); }
+        .hh-header { padding: 18px 25px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .hh-header:hover { background: var(--card-hover); }
+
+        .node-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap: 15px; padding: 0 25px 25px 25px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+        .node-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-top: 20px; }
+        
+        .status-badge { padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+        .badge-crit { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+        .badge-ok { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+
+        .metric-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted var(--border); font-size: 13px; }
+        .metric-label { color: var(--text-dim); }
+        .metric-value { font-family: var(--mono); font-weight: 700; color: var(--accent); }
+        .metric-value.bad { color: var(--danger); }
+
+        /* Loader */
+        .loader-zone { border: 2px dashed var(--border); border-radius: 20px; padding: 60px; text-align: center; background: var(--card); }
+        .hidden { display: none; }
+        .btn-primary { background: var(--accent); color: var(--bg); border: none; padding: 12px 25px; border-radius: 8px; font-weight: 800; font-size: 13px; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px var(--accent-glow); }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="brand">
+        <i class="fas fa-network-wired" style="color:var(--accent)"></i>
+        <div>MESH<span>ALPHA</span> <small style="font-size: 9px; opacity: 0.5; margin-left: 5px;">ENTERPRISE STABLE v6.1.4</small></div>
+    </div>
+    <div id="clock" style="font-family: var(--mono); font-size: 13px; color: var(--accent);">00:00:00</div>
+</div>
+
+<div class="container">
+    
+    <div class="control-strip">
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <select id="fileSelector" class="file-dropdown">
+                <option value="">Select Pre-defined File...</option>
+            </select>
+            <input type="file" id="csvInput" accept=".csv" class="hidden">
+            <button class="btn-primary" style="padding: 10px 18px; font-size: 11px;" onclick="document.getElementById('csvInput').click()">
+                <i class="fas fa-upload"></i> MANUAL UPLOAD
+            </button>
+        </div>
+        <input type="text" id="searchBox" class="search-bar" placeholder="Search by Username, Serial or MAC...">
+    </div>
+
+    <div id="welcomeZone" class="loader-zone">
+        <i class="fas fa-terminal" style="font-size: 40px; color: var(--accent); margin-bottom: 20px;"></i>
+        <h2 style="margin: 0 0 10px 0;">Intelligence Engine Ready</h2>
+        <p style="color: var(--text-dim); margin-bottom: 25px;">Select a fleet dataset from the dropdown or upload a local CSV to begin diagnostics.</p>
+    </div>
+
+    <div id="dashboardContent" class="hidden">
+        <div class="impact-summary">
+            <div class="impact-card crit">
+                <div class="impact-title">Coverage Deficit</div>
+                <div class="impact-value" id="kpi-cov">0</div>
+                <div class="impact-desc">Affected nodes where floor samples exceed 15% threshold.</div>
+            </div>
+            <div class="impact-card warn">
+                <div class="impact-title">Throughput Bottleneck</div>
+                <div class="impact-value" id="kpi-mcs">0</div>
+                <div class="impact-desc">Clients experiencing poor Tx link speed (>20% MCS Breach).</div>
+            </div>
+            <div class="impact-card crit">
+                <div class="impact-title">Roaming Stability</div>
+                <div class="impact-value" id="kpi-roam">0</div>
+                <div class="impact-desc">Total nodes exhibiting high client flapping or disconnects.</div>
+            </div>
+            <div class="impact-card">
+                <div class="impact-title">Sticky Traps</div>
+                <div class="impact-value" id="kpi-sticky">0</div>
+                <div class="impact-desc">Clients remaining on 5G with poor SNR instead of steering.</div>
+            </div>
+        </div>
+
+        <div class="fleet-stats">
+            <div class="stat-box"><span class="stat-value" id="stat-nodes">0</span><span class="stat-label">Analyzed Nodes</span></div>
+            <div class="stat-box"><span class="stat-value" id="stat-clients">0</span><span class="stat-label">Total Connected</span></div>
+            <div class="stat-box"><span class="stat-value" id="stat-disc" style="color:var(--danger)">0</span><span class="stat-label">Total Disconnects</span></div>
+            <div class="stat-box"><span class="stat-value" id="stat-eff" style="color:var(--success)">0%</span><span class="stat-label">Fleet Efficiency</span></div>
+        </div>
+
+        <div id="fleetList"></div>
+    </div>
+</div>
+
+<script>
+    // Configuration & Metadata
+    const FILE_LIST = ["filtered_mesh_output_20_April_2026.csv", "filtered_mesh_output_21_April_2026.csv", "filtered_mesh_output_22_April_2026.csv", "filtered_mesh_output_13_April_2026_to_19_April_2026.csv"];
+    const THRESHOLDS = { cov: 15, mcs: 20, disc: 5 };
+    const USER_METADATA_FILE = "mesh_alpha_users.json";
+
+    let fleetData = {};
+    let userMap = {};
+
+    function init() {
+        // Clock
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        
+        // Populate Dropdown
+        const sel = document.getElementById("fileSelector");
+        FILE_LIST.forEach(f => {
+            const o = document.createElement("option");
+            o.value = f;
+            o.textContent = "Log: " + f.replace("filtered_mesh_output_", "").replace(".csv", "");
+            sel.appendChild(o);
+        });
+
+        // Load User Mappings
+        fetch(USER_METADATA_FILE)
+            .then(res => res.json())
+            .then(json => { json.forEach(u => { userMap[u.serial.toUpperCase()] = u.user; }); })
+            .catch(e => console.warn("User metadata not found. Using raw serials."));
+
+        // Dropdown Event
+        sel.addEventListener("change", e => {
+            if(e.target.value) loadServerFile("filtered_data/" + e.target.value);
+        });
+    }
+
+    // Load from server
+    async function loadServerFile(path) {
+        const res = await fetch(path);
+        const csvText = await res.text();
+        parseCSV(csvText);
+    }
+
+    // Manual Upload Event
+    document.getElementById('csvInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        Papa.parse(file, {
+            header: true, dynamicTyping: true, skipEmptyLines: true,
+            complete: (res) => parseCSV(res.data, true)
+        });
+    });
+
+    function parseCSV(data, isObject = false) {
+        const rawData = isObject ? data : Papa.parse(data, { header: true, dynamicTyping: true, skipEmptyLines: true }).data;
+        processTelemetry(rawData);
+    }
+
+    function processTelemetry(data) {
+        fleetData = {};
+        let stats = { nodes: 0, clients: 0, disc: 0, mcs_sum: 0, cov_b: 0, mcs_b: 0, roam_b: 0, sticky_b: 0 };
+
+        data.forEach(row => {
+            const serial = (row.ont_serial_no || row.ONT_SERIAL_NO || "").toString().toUpperCase();
+            if (!serial) return;
+
+            const username = userMap[serial] || serial;
+            const host = (row.host_name || row.Station_Mac || "Node-" + stats.nodes);
+            
+            if (!fleetData[username]) fleetData[username] = { nodes: [], isCritical: false, serial: serial };
+            
+            // Core Logic
+            const covVal = Math.max(parseFloat(row.ap_with_poor_coverage_2 || 0), parseFloat(row.ap_with_poor_coverage_5 || 0));
+            const mcsVal = parseFloat(row.ap_with_poor_link_speed_mcs_rate || 0);
+            const discVal = parseFloat(row.ap_with_high_client_disconnection || 0);
+            const stickyVal = parseFloat(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage || 0);
+            
+            const nodeCrit = covVal > THRESHOLDS.cov || discVal > THRESHOLDS.disc || stickyVal > 0;
+            if (nodeCrit) fleetData[username].isCritical = true;
+
+            fleetData[username].nodes.push({
+                name: host,
+                mac: row.Station_Mac || 'N/A',
+                cov: covVal,
+                mcs: mcsVal,
+                disc: discVal,
+                sticky: stickyVal,
+                clients: row.total_no_of_clients || row.station_count || 0,
+                isCrit: nodeCrit
+            });
+
+            // Globals
+            stats.nodes++;
+            stats.clients += (row.total_no_of_clients || row.station_count || 0);
+            stats.disc += discVal;
+            stats.mcs_sum += mcsVal;
+            if (covVal > THRESHOLDS.cov) stats.cov_b++;
+            if (mcsVal > THRESHOLDS.mcs) stats.mcs_b++;
+            if (discVal > THRESHOLDS.disc) stats.roam_b++;
+            if (stickyVal > 0) stats.sticky_b++;
+        });
+
+        updateUI(stats);
+        renderFleet();
+        
+        document.getElementById('welcomeZone').classList.add('hidden');
+        document.getElementById('dashboardContent').classList.remove('hidden');
+    }
+
+    function updateUI(s) {
+        document.getElementById('kpi-cov').innerText = s.cov_b;
+        document.getElementById('kpi-mcs').innerText = s.mcs_b;
+        document.getElementById('kpi-roam').innerText = s.roam_b;
+        document.getElementById('kpi-sticky').innerText = s.sticky_b;
+        
+        document.getElementById('stat-nodes').innerText = s.nodes;
+        document.getElementById('stat-clients').innerText = s.clients;
+        document.getElementById('stat-disc').innerText = s.disc;
+        document.getElementById('stat-eff').innerText = (100 - (s.mcs_sum / s.nodes || 0)).toFixed(1) + "%";
+    }
+
+    function renderFleet() {
+        const list = document.getElementById('fleetList');
+        list.innerHTML = "";
+        const search = document.getElementById('searchBox').value.toLowerCase();
+
+        Object.keys(fleetData).forEach((user) => {
+            const hh = fleetData[user];
+            if (search && !user.toLowerCase().includes(search) && !hh.serial.toLowerCase().includes(search)) return;
+            
+            const hhCard = document.createElement('div');
+            hhCard.className = 'household-card';
+            hhCard.innerHTML = `
+                <div class="hh-header" onclick="this.nextElementSibling.classList.toggle('hidden')">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <span class="status-badge ${hh.isCritical ? 'badge-crit' : 'badge-ok'}">
+                            <i class="fas ${hh.isCritical ? 'fa-exclamation-triangle' : 'fa-check-circle'}"></i>
+                            ${hh.isCritical ? 'Alert' : 'Optimal'}
+                        </span>
+                        <div>
+                            <div style="font-weight:800; font-size:16px;">${user}</div>
+                            <div style="font-size:10px; color:var(--text-dim); font-family:var(--mono)">SN: ${hh.serial}</div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:700; font-size:14px;">${hh.nodes.length} Nodes</div>
+                        <i class="fas fa-chevron-down" style="font-size: 10px; color:var(--text-muted)"></i>
+                    </div>
+                </div>
+                <div class="node-grid hidden">
+                    ${hh.nodes.map(n => `
+                        <div class="node-item" style="${n.isCrit ? 'border-left: 4px solid var(--danger)' : ''}">
+                            <div style="font-weight:800; font-size:13px; color:var(--accent); margin-bottom:12px; display:flex; justify-content:space-between;">
+                                <span>${n.name}</span>
+                                <span style="font-size:9px; color:var(--text-muted)">${n.mac}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Poor Coverage Threshold</span>
+                                <span class="metric-value ${n.cov > THRESHOLDS.cov ? 'bad' : ''}">${n.cov}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Throughput (MCS Breach)</span>
+                                <span class="metric-value ${n.mcs > THRESHOLDS.mcs ? 'bad' : ''}">${n.mcs}%</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Disconnect Events</span>
+                                <span class="metric-value ${n.disc > THRESHOLDS.disc ? 'bad' : ''}">${n.disc}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Sticky 5G Traps</span>
+                                <span class="metric-value ${n.sticky > 0 ? 'bad' : ''}">${n.sticky}</span>
+                            </div>
+                            <div class="metric-row" style="border:none; margin-top:5px;">
+                                <span class="metric-label">Active Load</span>
+                                <span class="metric-value" style="color:var(--text-main)">${n.clients} Clients</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            list.appendChild(hhCard);
+        });
+    }
+
+    document.getElementById('searchBox').addEventListener('input', renderFleet);
+    init();
+</script>
+
+</body>
+</html>
