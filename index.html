@@ -297,7 +297,7 @@
             <div class="chart-filter-row">
                 <div class="chart-title" style="margin-bottom:0"><i class="fas fa-plug"></i> Client Disconnections
                     <span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i>
-                        <span class="tooltip-text"><b>ap_with_high_client_disconnection:</b> Count of stations having high disconnection. A station qualifies if dissociation events received &gt; 5.</span>
+                        <span class="tooltip-text"><b>ap_with_high_client_disconnection:</b> Count of stations having high disconnection. A station qualifies if dissociation events received &gt; 20.</span>
                     </span>
                 </div>
                 <select class="chart-user-dd" id="ddDisconnect" onchange="renderChartDisconnect()"></select>
@@ -411,7 +411,7 @@ const FIELD_DEFS = {
     "ap_with_high_interference": "Poor channel / Total channels. Poor channel = noise > -85 dBm for > 50% samples",
     "ap_with_high_interference_2": "Poor channel / Total channels on 2G. Poor channel = noise > -85 dBm for > 50% samples",
     "ap_with_high_interference_5": "Poor channel / Total channels on 5G. Poor channel = noise > -85 dBm for > 50% samples",
-    "ap_with_high_client_disconnection": "Count of stations with dissociation events > 5",
+    "ap_with_high_client_disconnection": "Count of stations with dissociation events > 20",
     "ap_with_high_retry_rate": "Samples where PRR > 5% / Total samples",
     "ap_with_high_tx_packet_error": "Samples where Tx error > 3% / Total samples",
     "ap_with_high_rx_packet_error": "Samples where Rx error > 3% / Total samples",
@@ -764,7 +764,7 @@ function runDiagnostics(row) {
     const issues = {
         cov: (clean(row.ap_with_poor_coverage_2 || row.ap_with_poor_coverage_2g) > 15 || clean(row.ap_with_poor_coverage_5 || row.ap_with_poor_coverage_5g) > 15),
         mcs: (clean(row.ap_with_poor_link_speed_mcs_rate) > 20),
-        mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 5),
+        mob: isBreach(row.ap_with_high_client_disconnection_breach) || (clean(row.ap_with_high_client_disconnection) > 20),
         sticky: isBreach(row.ap_with_high_no_of_sticky_client_5g_with_poor_coverage) || isBreach(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage_breach) || isBreach(row.ap_with_high_no_of_sticky_client_5_with_poor_coverage)
     };
     return { isCritical: issues.cov || issues.mob || issues.sticky, issues };
@@ -1096,7 +1096,7 @@ function renderChartDisconnect() {
     let highDisc = 0, normalDisc = 0;
     clients.forEach(c => {
         const disc = clean(c.latestRow.ap_with_high_client_disconnection);
-        if (disc > 5) highDisc++; else normalDisc++;
+        if (disc > 20) highDisc++; else normalDisc++;
     });
 
     chartInstances.disconnect = new Chart(document.getElementById('chartDisconnect'), {
@@ -1114,7 +1114,7 @@ function renderChartDisconnect() {
                     callbacks: {
                         afterLabel: function(ctx) {
                             if (ctx.label.includes('High')) return FIELD_DEFS.ap_with_high_client_disconnection;
-                            return 'Stations with dissociation events <= 5';
+                            return 'Stations with dissociation events <= 20';
                         }
                     }
                 }
