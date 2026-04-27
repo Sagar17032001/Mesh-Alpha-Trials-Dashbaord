@@ -15,6 +15,12 @@
     {"user": "Rashim Ext-1", "serial": "ANKAPBA000026373", "mac": "BC-51-5F-E7-9F-40"},
     {"user": "Anil Rai Root", "serial": "NKOT2F045EF1", "mac": "6C-22-F7-E4-7E-B3"},
     {"user": "Anil Rai Ext-1", "serial": "ANKAPB4F00038580", "mac": "BC-51-5F-71-CB-63"},
-    {"user": "Anil Rai Ext-2", "serial": "ANKAPB4F00023105", "mac": "BC-51-5F-6E-04-33"}
-
+    {"user": "Anil Rai Ext-2", "serial": "ANKAPB4F00023105", "mac": "BC-51-5F-6E-04-33"},
+    {"user": "Atul Sachdewa Root", "serial": "NKOT0F01CE6F", "mac": "2C-C1-F4-32-FE-41"},
+    {"user": "Atul Sachdewa Ext-1", "serial": "ANKAPB1F00292177", "mac": "2C-C1-F4-DA-E0-7F"},
+    {"user": "Atul Sachdewa Ext-2", "serial": "ANKAPACF00214542", "mac": "2C-C1-F4-32-FE-41"},
+    {"user": "Randeep Sekhon Root", "serial": "ANKAPAFE00003064", "mac": "58-07-F8-4F-AB-41"},
+    {"user": "Randeep Sekhon Ext-1", "serial": "ANKAPAEE00000057", "mac": "48-41-7B-57-20-D0"},
+    {"user": "Randeep Sekhon Ext-2", "serial": "ANKAPAEE00000070", "mac": "48-41-7B-57-21-A0"},
+    {"user": "Randeep Sekhon Ext-3", "serial": "ANKAPA1E00080407", "mac": "58-07-F8-5D-6C-B1"}
 ]
