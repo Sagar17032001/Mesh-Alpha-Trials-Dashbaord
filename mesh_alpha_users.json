@@ -22,5 +22,31 @@
     {"user": "Randeep Sekhon Root", "serial": "ANKAPAFE00003064", "mac": "58-07-F8-4F-AB-41"},
     {"user": "Randeep Sekhon Ext-1", "serial": "ANKAPAEE00000057", "mac": "48-41-7B-57-20-D0"},
     {"user": "Randeep Sekhon Ext-2", "serial": "ANKAPAEE00000070", "mac": "48-41-7B-57-21-A0"},
-    {"user": "Randeep Sekhon Ext-3", "serial": "ANKAPA1E00080407", "mac": "58-07-F8-5D-6C-B1"}
+    {"user": "Randeep Sekhon Ext-3", "serial": "ANKAPA1E00080407", "mac": "58-07-F8-5D-6C-B1"},
+    {"user": "Animesh Root", "serial": "ANKAPA1E00080407", "mac": "6C-4F-89-10-54-23"},
+    {"user": "Animesh Ext-1", "serial": "AZYAPB1F00068704", "mac": "30-BD-13-CF-DE-38"},
+    {"user": "Animesh Ext-2", "serial": "ANKAPBA000099672", "mac": "0C-88-32-BB-E8-71"},
+    {"user": "Sagar Root", "serial": "ZYOTEF206038", "mac": "6C-4F-89-C0-F6-91"},
+    {"user": "Airtel Center Root", "serial": "ZYOT1E000175", "mac": "80-EA-0B-C4-54-9A"},
+    {"user": "Airtel Center Ext-1", "serial": "AZYAPBB000086350", "mac": "C4-9A-31-8F-E2-70"},
+    {"user": "Airtel Center Ext-2", "serial": "AZYAPBB000086351", "mac": "C4-9A-31-8F-E2-78"},
+    {"user": "Ramesh Root", "serial": "ZYOTAF220521", "mac": ""},
+    {"user": "Amitabh Root", "serial": "ZYOTB0900058", "mac": "C0-2E-5F-AD-77-99"},
+    {"user": "Amitabh Ext-1", "serial": "AZYAPB1F00061776", "mac": "30-BD-13-CF-05-D0"},
+    {"user": "Amitabh Ext-2", "serial": "AZYAPB0F00081172", "mac": "30-BD-13-C5-EC-A8"},
+    {"user": "Praveen Root", "serial": "ZYOT5E069474", "mac": "6C-4F-89-05-E1-1B"},
+    {"user": "Praveen Ext-1", "serial": "223333-768367373646", "mac": "30-BD-13-CF-4F-18"},
+    {"user": "Hari Root", "serial": "ZYOTFF046132", "mac": ""},
+    {"user": "Ankit Root", "serial": "ZYOTFD000042", "mac": "F8-0D-A9-6A-E5-C8"},
+    {"user": "Anand Root", "serial": "ZYOT1F089650", "mac": ""},
+    {"user": "Rahul Root", "serial": "ZYOTB0900020", "mac": "C0-2E-5F-AD-76-69"},
+    {"user": "Rahul Ext-1", "serial": "AZYAPB1F00064279", "mac": "30-BD-13-CF-53-F0"},
+    {"user": "Rahul Ext-2", "serial": "AZYAPB1F00061789", "mac": "30-BD-13-CF-06-38"},
+    {"user": "Animesh Test Device 2 Root", "serial": "ATAAPBBF00000126", "mac": ""},
+    {"user": "Praveen(Amitabh) Root", "serial": "ZYOTB0900058", "mac": "C0-2E-5F-AD-77-99"},
+    {"user": "Praveen(Amitabh) Ext-1", "serial": "AZYAPB0F00081172", "mac": "30-BD-13-C5-EC-A8"},
+    {"user": "Praveen(Amitabh) Ext-2", "serial": "AZYAPB1F00061776", "mac": "30-BD-13-CF-05-D0"}
+
+
+
 ]
