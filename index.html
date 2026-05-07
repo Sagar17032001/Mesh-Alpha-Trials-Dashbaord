@@ -477,6 +477,78 @@ const BREACH_DEFS = {
 // Merge all defs
 const ALL_FIELD_DEFS = { ...FIELD_DEFS, ...BREACH_DEFS };
 
+// ==================== SCHEMA NORMALIZER ====================
+const COLUMN_MAP_NEW_TO_OLD = {
+    // === Friendly names → ap_with_* (for POD rows in new schema) ===
+    "mac address":"mac_address","connected clients":"station_count",
+    "poor coverage (overall)":"ap_with_poor_coverage","poor coverage (2.4 ghz)":"ap_with_poor_coverage_2","poor coverage (5 ghz)":"ap_with_poor_coverage_5",
+    "poor snr (overall)":"ap_with_poor_snr_sample","poor snr (2.4 ghz)":"ap_with_poor_snr_sample_2","poor snr (5 ghz)":"ap_with_poor_snr_sample_5",
+    "low download throughput (overall)":"ap_with_poor_dl_throughput_less_than_threshold","low upload throughput (overall)":"ap_with_poor_ul_throughput_less_than_threshold",
+    "low link speed (overall)":"ap_with_poor_link_speed_mcs_rate","low link speed (2.4 ghz)":"ap_with_poor_link_speed_mcs_rate_2","low link speed (5 ghz)":"ap_with_poor_link_speed_mcs_rate_5",
+    "high interference (overall)":"ap_with_high_interference","high interference (2.4 ghz)":"ap_with_high_interference_2","high interference (5 ghz)":"ap_with_high_interference_5",
+    "high client disconnections (overall)":"ap_with_high_client_disconnection","high retry rate (overall)":"ap_with_high_retry_rate",
+    "high tx packet errors (overall)":"ap_with_high_tx_packet_error","tx packet error (%) (overall)":"ap_with_high_tx_packet_error_percent",
+    "high tx packet errors flag (overall)":"ap_with_high_tx_packet_error_flag","high rx packet errors (overall)":"ap_with_high_rx_packet_error","high rx packet errors flag (overall)":"ap_with_high_rx_packet_error_flag",
+    "downtime (%) (overall)":"ap_downtime_per","high cpu utilization (overall)":"ap_with_high_cpu_utilisation","memory errors (overall)":"ap_with_high_memory_packet_error",
+    "sticky clients (2.4 ghz, good coverage)":"ap_with_high_no_of_sticky_client_2_with_good_coverage","sticky clients (5 ghz, poor coverage)":"ap_with_high_no_of_sticky_client_5_with_poor_coverage",
+    "poor tot on (5 ghz)":"ap_with_poor_tot_on_5g","zero usage aps (overall)":"ap_with_zero_usage",
+    "channel utilization (%) (overall)":"ap_with_high_channel_utilisation_pct","high channel utilization count (overall)":"ap_with_high_channel_utilisation_count","total channels (all bands)":"total_channels_all",
+    "high channel utilization (2.4 ghz) (%)":"ap_with_high_channel_utilisation_2_pct","high channel utilization count (2.4 ghz)":"ap_with_high_channel_utilisation_2_count","total channels (2.4 ghz)":"total_channels_2",
+    "high channel congestion (5 ghz) (%)":"ap_with_high_channel_congestion_5_pct","high channel congestion count (5 ghz)":"ap_with_high_channel_congestion_5_count","total channels (5 ghz)":"total_channels_5",
+    "obss (overall)":"channelobss","obss2 4 (overall)":"channelobss2_4","obss5 (overall)":"channelobss5",
+    "poor coverage breach (overall)":"ap_with_poor_coverage_breach","poor coverage breach (2.4 ghz)":"ap_with_poor_coverage_2_breach","poor coverage breach (5 ghz)":"ap_with_poor_coverage_5_breach",
+    "poor snr breach (overall)":"ap_with_poor_snr_sample_breach","poor snr breach (2.4 ghz)":"ap_with_poor_snr_sample_2_breach","poor snr breach (5 ghz)":"ap_with_poor_snr_sample_5_breach",
+    "low download throughput breach (overall)":"ap_with_poor_dl_throughput_less_than_threshold_breach","low upload throughput breach (overall)":"ap_with_poor_ul_throughput_less_than_threshold_breach",
+    "low link speed breach (overall)":"ap_with_poor_link_speed_mcs_rate_breach","low link speed breach (2.4 ghz)":"ap_with_poor_link_speed_mcs_rate_2_breach","low link speed breach (5 ghz)":"ap_with_poor_link_speed_mcs_rate_5_breach",
+    "high interference breach (overall)":"ap_with_high_interference_breach","high interference breach (2.4 ghz)":"ap_with_high_interference_2_breach","high interference breach (5 ghz)":"ap_with_high_interference_5_breach",
+    "high client disconnections breach (overall)":"ap_with_high_client_disconnection_breach","high retry rate breach (overall)":"ap_with_high_retry_rate_breach",
+    "high tx packet errors breach (overall)":"ap_with_high_tx_packet_error_breach","tx packet error (%) breach (overall)":"ap_with_high_tx_packet_error_percent_breach","high rx packet errors breach (overall)":"ap_with_high_rx_packet_error_breach",
+    "ap downtime (%) breach (overall)":"ap_downtime_per_breach","internet down incidents breach (overall)":"ap_with_high_internet_down_incident_breach",
+    "high cpu utilization breach (overall)":"ap_with_high_cpu_utilisation_breach","memory errors breach (overall)":"ap_with_high_memory_packet_error_breach",
+    "sticky clients breach (2.4 ghz, good coverage)":"ap_with_high_no_of_sticky_client_2_with_good_coverage_breach","sticky clients breach (5 ghz, poor coverage)":"ap_with_high_no_of_sticky_client_5_with_poor_coverage_breach",
+    "poor tot on breach (5 ghz)":"ap_with_poor_tot_on_5g_breach","zero usage aps breach (overall)":"ap_with_zero_usage_breach",
+    "high channel utilisation breach (overall)":"ap_with_high_channel_utilisation_breach","high channel utilisation breach (2.4 ghz)":"ap_with_high_channel_utilisation_2_breach","high channel congestion breach (5 ghz)":"ap_with_high_channel_congestion_5_breach",
+    "obss breach (overall)":"channelobss_breach","obss2 4 breach (overall)":"channelobss2_4_breach","obss5 breach (overall)":"channelobss5_breach",
+
+    // === client_with_* → ap_with_* (for CLIENT rows in new schema) ===
+    "client_with_poor_coverage":"ap_with_poor_coverage",
+    "client_with_poor_coverage_2":"ap_with_poor_coverage_2",
+    "client_with_poor_coverage_5":"ap_with_poor_coverage_5",
+    "client_with_poor_snr_sample":"ap_with_poor_snr_sample",
+    "client_with_poor_snr_sample_2":"ap_with_poor_snr_sample_2",
+    "client_with_poor_snr_sample_5":"ap_with_poor_snr_sample_5",
+    "client_with_poor_link_speed_mcs_rate":"ap_with_poor_link_speed_mcs_rate",
+    "client_with_poor_link_speed_mcs_rate_2":"ap_with_poor_link_speed_mcs_rate_2",
+    "client_with_poor_link_speed_mcs_rate_5":"ap_with_poor_link_speed_mcs_rate_5",
+    "client_with_high_client_disconnection":"ap_with_high_client_disconnection",
+    "client_with_high_tx_packet_error":"ap_with_high_tx_packet_error",
+    "client_with_poor_dl_throughput_less_than_threshold":"ap_with_poor_dl_throughput_less_than_threshold",
+    "client_with_poor_ul_throughput_less_than_threshold":"ap_with_poor_ul_throughput_less_than_threshold",
+    "client_with_high_no_of_sticky_client_2_with_good_coverage":"ap_with_high_no_of_sticky_client_2_with_good_coverage",
+    "client_with_high_no_of_sticky_client_5_with_poor_coverage":"ap_with_high_no_of_sticky_client_5_with_poor_coverage",
+    "client_with_poor_coverage_breach":"ap_with_poor_coverage_breach",
+    "client_with_poor_coverage_2_breach":"ap_with_poor_coverage_2_breach",
+    "client_with_poor_coverage_5_breach":"ap_with_poor_coverage_5_breach",
+    "client_with_poor_snr_sample_breach":"ap_with_poor_snr_sample_breach",
+    "client_with_poor_snr_sample_2_breach":"ap_with_poor_snr_sample_2_breach",
+    "client_with_poor_snr_sample_5_breach":"ap_with_poor_snr_sample_5_breach",
+    "client_with_poor_link_speed_mcs_rate_breach":"ap_with_poor_link_speed_mcs_rate_breach",
+    "client_with_poor_link_speed_mcs_rate_2_breach":"ap_with_poor_link_speed_mcs_rate_2_breach",
+    "client_with_poor_link_speed_mcs_rate_5_breach":"ap_with_poor_link_speed_mcs_rate_5_breach",
+    "client_with_high_client_disconnection_breach":"ap_with_high_client_disconnection_breach",
+    "client_with_high_tx_packet_error_breach":"ap_with_high_tx_packet_error_breach"
+};
+
+// FIXED: Remove "mac address" gate - always run mapping
+function normalizeRow(row) {
+    for (const [n, o] of Object.entries(COLUMN_MAP_NEW_TO_OLD)) {
+        const v = row[n];
+        if (v !== undefined && v !== null && v !== "") {
+            if (row[o] === undefined || row[o] === null || row[o] === "") row[o] = v;
+        }
+    }
+    return row;
+}
 // ==================== SYSTEM CONSTANTS ====================
 const FILE_LIST = ["filtered_mesh_output_20_April_2026.csv", "filtered_mesh_output_21_April_2026.csv", "filtered_mesh_output_22_April_2026.csv", "filtered_mesh_output_23_April_2026.csv", "filtered_mesh_output_24_April_2026.csv", "filtered_mesh_output_25_April_2026.csv", "filtered_mesh_output_28_April_2026.csv", "filtered_mesh_output_29_April_2026.csv", "filtered_mesh_output_30_April_2026.csv", "filtered_mesh_output_1_May_2026.csv", "filtered_mesh_output_2_May_2026.csv", "filtered_mesh_output_3_May_2026.csv", "filtered_mesh_output_4_May_2026.csv", "filtered_mesh_output_6_May_2026.csv"];
 const USER_METADATA_FILE = "mesh_alpha_users.json";
@@ -640,17 +712,18 @@ async function loadData(mode) {
             for (const f of FILE_LIST) {
                 const res = await fetch(f);
                 const text = await res.text();
-                const { data } = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
-                allRows = allRows.concat(data);
+                const parsed = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+                const normalized = parsed.data.map(normalizeRow);
+                allRows = allRows.concat(normalized);
                 // Store per-file client data for capability timeline
-                fileClientData[f] = data.filter(r => isClientRow(r));
+                fileClientData[f] = normalized.filter(r => isClientRow(r));
             }
         } else {
             const res = await fetch(mode);
             const text = await res.text();
-            const { data } = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
-            allRows = data;
-            fileClientData[mode] = data.filter(r => isClientRow(r));
+            const parsed = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+            allRows = parsed.data.map(normalizeRow);
+            fileClientData[mode] = allRows.filter(r => isClientRow(r));
         }
         processData(allRows);
     } catch (e) {
