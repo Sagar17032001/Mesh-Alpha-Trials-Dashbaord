@@ -1478,287 +1478,353 @@ async function exportPNG(){
 
 
 
+
 // ============================================================
-// HEADER USER FILTER PATCH - Paste this BEFORE initTheme()/boot()
+// MESHALPHA v2.0 ENHANCEMENT PATCH
+// Paste this BEFORE initTheme()/boot() at the bottom of <script>
 // ============================================================
 
-// 1. INJECT the header user filter dropdown into the DOM
-(function injectHeaderUserFilter() {
-    const dateRangeControls = document.getElementById('dateRangeControls');
-    if (!dateRangeControls) return;
-    const headerFilter = document.createElement('select');
-    headerFilter.id = 'headerUserFilter';
-    headerFilter.className = 'file-dropdown';
-    headerFilter.style.minWidth = '180px';
-    headerFilter.innerHTML = '<option value="ALL">\uD83D\uDC64 All Users</option>';
-    // Insert after the dateRangeControls element
-    dateRangeControls.parentNode.insertBefore(headerFilter, dateRangeControls.nextSibling);
+// ---- 1. INJECT CSS ENHANCEMENTS ----
+(function injectCSS(){
+const s=document.createElement('style');
+s.textContent=`
+/* === FULL PAGE LOADER === */
+.mesh-loader-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:30px;transition:opacity 0.6s ease}
+.mesh-loader-overlay.fade-out{opacity:0;pointer-events:none}
+.mesh-loader-ring{width:80px;height:80px;position:relative}
+.mesh-loader-ring .ring{position:absolute;width:100%;height:100%;border:3px solid transparent;border-radius:50%;animation:loaderSpin 1.2s ease-in-out infinite}
+.mesh-loader-ring .ring:nth-child(1){border-top-color:var(--accent);animation-delay:0s}
+.mesh-loader-ring .ring:nth-child(2){border-right-color:var(--purple);animation-delay:0.15s;width:65px;height:65px;top:7.5px;left:7.5px}
+.mesh-loader-ring .ring:nth-child(3){border-bottom-color:var(--cyan);animation-delay:0.3s;width:50px;height:50px;top:15px;left:15px}
+@keyframes loaderSpin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.mesh-loader-brand{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:22px;letter-spacing:-0.5px;color:var(--text-main)}
+.mesh-loader-brand span{color:var(--accent)}
+.mesh-loader-status{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;min-height:18px;text-align:center;transition:all 0.3s}
+.mesh-loader-bar{width:220px;height:3px;background:var(--border);border-radius:3px;overflow:hidden}
+.mesh-loader-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--purple),var(--cyan));border-radius:3px;transition:width 0.4s ease}
+
+/* === FADE-IN ANIMATIONS === */
+.fade-in-section{opacity:0;transform:translateY(15px);transition:opacity 0.5s ease,transform 0.5s ease}
+.fade-in-section.visible{opacity:1;transform:translateY(0)}
+
+/* === SOFTER SEVERITY BADGES === */
+.severity-badge.needs-attention{background:rgba(251,146,60,0.12);color:#fb923c;border:1px solid rgba(251,146,60,0.35)}
+.severity-badge.monitor{background:rgba(250,204,21,0.10);color:#eab308;border:1px solid rgba(234,179,8,0.3)}
+.severity-badge.healthy{background:var(--success-bg);color:var(--success);border:1px solid var(--success)}
+.insight-card.sev-needs-attention{border-left:4px solid #fb923c}
+.insight-card.sev-monitor{border-left:4px solid #eab308}
+.insight-card.sev-healthy{border-left:4px solid var(--success)}
+
+/* === SOFTER EXEC SCORES === */
+.exec-score.good{background:var(--success-bg);color:var(--success);border:1px solid var(--success)}
+.exec-score.fair{background:rgba(250,204,21,0.10);color:#eab308;border:1px solid rgba(234,179,8,0.3)}
+.exec-score.attention{background:rgba(251,146,60,0.12);color:#fb923c;border:1px solid rgba(251,146,60,0.35)}
+
+/* === IMPROVED TREND DELTAS === */
+.trend-delta.good{color:var(--success)}.trend-delta.bad{color:#fb923c}.trend-delta.neutral{color:var(--text-muted)}
+
+/* === REFRESHED TIMESTAMP === */
+.refresh-stamp{font-size:10px;color:var(--text-muted);font-weight:600;font-family:'Plus Jakarta Sans',sans-serif;display:flex;align-items:center;gap:5px}
+`;
+document.head.appendChild(s);
 })();
 
-// 2. OVERRIDE populateUserFilter to populate BOTH dropdowns
-const _origPopulateUserFilter = populateUserFilter;
-populateUserFilter = function() {
-    ['userFilter', 'headerUserFilter'].forEach(id => {
-        const dd = document.getElementById(id);
-        if (!dd) return;
-        const prev = dd.value;
-        dd.innerHTML = '<option value="ALL">\uD83D\uDC64 All Users</option>';
-        allUserList.forEach(user => {
-            const o = document.createElement("option");
-            o.value = user;
-            o.textContent = user;
-            dd.appendChild(o);
-        });
-        if (prev && prev !== "ALL") dd.value = prev;
+// ---- 2. INJECT LOADER INTO DOM ----
+(function injectLoader(){
+const ld=document.createElement('div');
+ld.id='meshLoader';
+ld.className='mesh-loader-overlay';
+ld.innerHTML=`
+<div class="mesh-loader-ring"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
+<div class="mesh-loader-brand">MESH<span>ALPHA</span></div>
+<div class="mesh-loader-status" id="loaderStatus">Initializing Dashboard...</div>
+<div class="mesh-loader-bar"><div class="mesh-loader-bar-fill" id="loaderBarFill"></div></div>`;
+document.body.prepend(ld);
+})();
+
+function updateLoader(text, pct){
+    const st=document.getElementById('loaderStatus');
+    const bar=document.getElementById('loaderBarFill');
+    if(st)st.textContent=text;
+    if(bar)bar.style.width=pct+'%';
+}
+function hideLoader(){
+    const ld=document.getElementById('meshLoader');
+    if(ld){ld.classList.add('fade-out');setTimeout(()=>{ld.remove();},700);}
+    // Trigger fade-in animations
+    document.querySelectorAll('.fade-in-section').forEach((el,i)=>{
+        setTimeout(()=>{el.classList.add('visible');},i*80);
+    });
+}
+
+// ---- 3. INJECT HEADER USER FILTER ----
+(function injectHeaderUserFilter(){
+    const drc=document.getElementById('dateRangeControls');
+    if(!drc)return;
+    const sel=document.createElement('select');
+    sel.id='headerUserFilter';
+    sel.className='file-dropdown';
+    sel.style.minWidth='180px';
+    sel.innerHTML='<option value="ALL">\uD83D\uDC64 All Users</option>';
+    drc.parentNode.insertBefore(sel,drc.nextSibling);
+})();
+
+// ---- 4. INJECT REFRESH TIMESTAMP ----
+(function injectRefreshStamp(){
+    const clockDiv=document.querySelector('#current-time')?.parentNode;
+    if(!clockDiv)return;
+    const stamp=document.createElement('div');
+    stamp.className='refresh-stamp';
+    stamp.id='refreshStamp';
+    stamp.innerHTML='<i class="fas fa-sync-alt"></i> <span id="lastRefreshTime">—</span>';
+    clockDiv.parentNode.insertBefore(stamp,clockDiv.nextSibling);
+})();
+
+function updateRefreshStamp(){
+    const el=document.getElementById('lastRefreshTime');
+    if(el)el.textContent='Refreshed '+new Date().toLocaleTimeString();
+}
+
+
+// ---- 5. OVERRIDE populateUserFilter (DUAL DROPDOWN) ----
+populateUserFilter=function(){
+    ['userFilter','headerUserFilter'].forEach(id=>{
+        const dd=document.getElementById(id);if(!dd)return;
+        const prev=dd.value;
+        dd.innerHTML='<option value="ALL">\uD83D\uDC64 All Users</option>';
+        allUserList.forEach(user=>{const o=document.createElement("option");o.value=user;o.textContent=user;dd.appendChild(o);});
+        if(prev&&prev!=="ALL")dd.value=prev;
     });
 };
 
-// 3. OVERRIDE boot to add bidirectional sync event listeners
-const _origBoot = boot;
-boot = async function() {
-    await _origBoot();
-    // Add bidirectional sync for header user filter
-    const headerFilter = document.getElementById('headerUserFilter');
-    const toolbarFilter = document.getElementById('userFilter');
-    if (headerFilter) {
-        headerFilter.addEventListener('change', () => {
-            const val = headerFilter.value;
-            if (toolbarFilter) toolbarFilter.value = val;
-            renderAllCharts();
-            renderFleet(document.getElementById("masterFilter").value);
-            if (viewMode === 'range' && Object.keys(perDayMetrics).length > 0) {
-                renderWeeklyInsightsV2();
-                generateExecutiveSummary();
-                generateUserInsights();
-            }
-        });
-    }
-    if (toolbarFilter) {
-        // Enhance existing toolbar filter to also sync to header
-        toolbarFilter.addEventListener('change', () => {
-            const val = toolbarFilter.value;
-            if (headerFilter) headerFilter.value = val;
-            // Original behavior already fires from existing listener
-            if (viewMode === 'range' && Object.keys(perDayMetrics).length > 0) {
-                renderWeeklyInsightsV2();
-                generateExecutiveSummary();
-                generateUserInsights();
-            }
-        });
+// ---- 6. OVERRIDE boot() WITH LOADER + SYNC ----
+const _origBoot=boot;
+boot=async function(){
+    updateLoader('Loading user metadata...',10);
+    setInterval(()=>{document.getElementById('current-time').innerText=new Date().toLocaleTimeString();},1000);
+    const sel=document.getElementById("fileSelector");
+    const allOpt=document.createElement("option");allOpt.value="ALL";allOpt.textContent="\uD83D\uDCCA All Files (Combined)";sel.appendChild(allOpt);
+    FILE_LIST.forEach(f=>{const o=document.createElement("option");o.value=f;o.textContent=f.replace("filtered_mesh_output_","").replace(".csv","").replace(/_/g," ");sel.appendChild(o);});
+    sel.addEventListener("change",e=>loadData(e.target.value));
+    populateDateRangeDropdowns();
+
+    // Bidirectional sync
+    const hf=document.getElementById("headerUserFilter");
+    const tf=document.getElementById("userFilter");
+    if(tf){tf.addEventListener("change",()=>{
+        if(hf)hf.value=tf.value;
+        renderAllCharts();renderFleet(document.getElementById("masterFilter").value);
+        if(viewMode==='range'&&Object.keys(perDayMetrics).length>0){renderWeeklyInsightsV2();generateExecutiveSummary();generateUserInsights();}
+    });}
+    if(hf){hf.addEventListener("change",()=>{
+        if(tf)tf.value=hf.value;
+        renderAllCharts();renderFleet(document.getElementById("masterFilter").value);
+        if(viewMode==='range'&&Object.keys(perDayMetrics).length>0){renderWeeklyInsightsV2();generateExecutiveSummary();generateUserInsights();}
+    });}
+
+    updateLoader('Fetching user profiles...',20);
+    try{
+        const userRes=await fetch(USER_METADATA_FILE);const userJson=await userRes.json();
+        userJson.forEach(u=>{userMap[u.serial.toUpperCase()]=u.user;});
+        updateLoader('Loading fleet telemetry...',35);
+        await loadData("ALL");
+    }catch(err){
+        console.error("Boot Error:",err);
+        hideLoader();
+        document.getElementById("fleetDisplay").innerHTML='<div style="color:var(--danger);text-align:center;padding:50px;">Failed to load user metadata.</div>';
     }
 };
 
-// 4. OVERRIDE renderWeeklyInsightsV2 to respect user filter
-const _origRenderWeekly = renderWeeklyInsightsV2;
-renderWeeklyInsightsV2 = function() {
+// ---- 7. OVERRIDE loadData WITH LOADER PROGRESS ----
+const _origLoadData=loadData;
+loadData=async function(mode){
+    const display=document.getElementById("fleetDisplay");
+    display.innerHTML='';
+    try{
+        let allRows=[];fileClientData={};
+        if(mode==="ALL"){
+            for(let i=0;i<FILE_LIST.length;i++){
+                const f=FILE_LIST[i];
+                updateLoader('Parsing '+f.replace('filtered_mesh_output_','').replace('.csv','').replace(/_/g,' ')+'...',35+Math.round((i/FILE_LIST.length)*50));
+                const res=await fetch(f);const text=await res.text();
+                const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true});
+                const normalized=parsed.data.map(normalizeRow);
+                allRows=allRows.concat(normalized);
+                fileClientData[f]=normalized.filter(r=>isClientRow(r));
+            }
+        }else{
+            updateLoader('Parsing data...',60);
+            const res=await fetch(mode);const text=await res.text();
+            const parsed=Papa.parse(text,{header:true,dynamicTyping:true,skipEmptyLines:true});
+            allRows=parsed.data.map(normalizeRow);
+            fileClientData[mode]=allRows.filter(r=>isClientRow(r));
+        }
+        updateLoader('Building fleet models...',90);
+        processData(allRows);
+        updateLoader('Rendering dashboard...',98);
+        await new Promise(r=>setTimeout(r,200));
+        hideLoader();
+        updateRefreshStamp();
+        // Add fade-in classes to main sections
+        document.querySelectorAll('.impact-summary,.fleet-stats,.charts-section,.cap-timeline-card,.toolbar,.weekly-insights-section').forEach(el=>{
+            el.classList.add('fade-in-section');
+        });
+        setTimeout(()=>{
+            document.querySelectorAll('.fade-in-section').forEach((el,i)=>{setTimeout(()=>{el.classList.add('visible');},i*60);});
+        },100);
+    }catch(e){
+        console.error("Load Error:",e);
+        hideLoader();
+        display.innerHTML='<div style="color:var(--danger);text-align:center;padding:50px;">Failed to load fleet data.</div>';
+    }
+};
+
+
+// ---- 8. OVERRIDE renderWeeklyInsightsV2 (FIXED ARROWS + USER FILTER) ----
+renderWeeklyInsightsV2=function(){
     destroyWeeklyCharts();
-    const labels = Object.keys(perDayMetrics);
-    const selectedUser = document.getElementById("headerUserFilter")?.value || "ALL";
-
+    const labels=Object.keys(perDayMetrics);
+    const selectedUser=document.getElementById("headerUserFilter")?.value||"ALL";
     let M;
-    if (selectedUser !== "ALL") {
-        // Build filtered metrics from per-user per-day data
-        M = labels.map(label => {
-            const pu = perDayPerUserMetrics[selectedUser] && perDayPerUserMetrics[selectedUser][label];
-            if (!pu) return {
-                clients:0,disc:0,sticky:0,mcsEff:0,breaches:0,covDeficit:0,
-                avgPoorCov2:0,avgPoorCov5:0,avgPoorSnr2:0,avgPoorSnr5:0,avgPoorMcs:0,
-                tot2g:0,tot5g:0,podsOnline:0,podsOffline:0,podsExcellent:0,podsDegraded:0,podsCritical:0,
-                sticky2g:0,sticky5g:0,capEHT:0,capHE:0,capVHT:0,capHT:0,capLegacy:0
-            };
-            const stickyTotal = (pu.sticky2g || 0) + (pu.sticky5g || 0);
-            const efficiency = pu.clientCnt ? (100 - (pu.mcsSum || 0) / pu.clientCnt) : 0;
-            return {
-                clients: pu.clients || 0,
-                disc: pu.disc || 0,
-                sticky: stickyTotal,
-                mcsEff: efficiency,
-                breaches: pu.breaches || 0,
-                covDeficit: pu.covIssue ? pu.clients : 0,
-                avgPoorCov2: pu.avgPoorCov2 || 0,
-                avgPoorCov5: pu.avgPoorCov5 || 0,
-                avgPoorSnr2: pu.avgPoorSnr2 || 0,
-                avgPoorSnr5: pu.avgPoorSnr5 || 0,
-                avgPoorMcs: pu.avgPoorMcs || 0,
-                tot2g: pu.avgTot2g || 0,
-                tot5g: pu.avgTot5g || 0,
-                podsOnline: pu.podsOnline || 0,
-                podsOffline: pu.podsOffline || 0,
-                podsExcellent: pu.podsOnline || 0,
-                podsDegraded: 0,
-                podsCritical: pu.podsOffline || 0,
-                sticky2g: pu.sticky2g || 0,
-                sticky5g: pu.sticky5g || 0,
-                capEHT: 0, capHE: 0, capVHT: 0, capHT: 0, capLegacy: 0
-            };
+    if(selectedUser!=="ALL"){
+        M=labels.map(label=>{
+            const pu=perDayPerUserMetrics[selectedUser]&&perDayPerUserMetrics[selectedUser][label];
+            if(!pu)return{clients:0,disc:0,sticky:0,mcsEff:0,breaches:0,covDeficit:0,avgPoorCov2:0,avgPoorCov5:0,avgPoorSnr2:0,avgPoorSnr5:0,avgPoorMcs:0,tot2g:0,tot5g:0,podsOnline:0,podsOffline:0,podsExcellent:0,podsDegraded:0,podsCritical:0,sticky2g:0,sticky5g:0,capEHT:0,capHE:0,capVHT:0,capHT:0,capLegacy:0};
+            return{clients:pu.clients||0,disc:pu.disc||0,sticky:(pu.sticky2g||0)+(pu.sticky5g||0),mcsEff:pu.clientCnt?(100-(pu.mcsSum||0)/pu.clientCnt):0,breaches:pu.breaches||0,covDeficit:pu.covIssue?pu.clients:0,avgPoorCov2:pu.avgPoorCov2||0,avgPoorCov5:pu.avgPoorCov5||0,avgPoorSnr2:pu.avgPoorSnr2||0,avgPoorSnr5:pu.avgPoorSnr5||0,avgPoorMcs:pu.avgPoorMcs||0,tot2g:pu.avgTot2g||0,tot5g:pu.avgTot5g||0,podsOnline:pu.podsOnline||0,podsOffline:pu.podsOffline||0,podsExcellent:pu.podsOnline||0,podsDegraded:0,podsCritical:pu.podsOffline||0,sticky2g:pu.sticky2g||0,sticky5g:pu.sticky5g||0,capEHT:0,capHE:0,capVHT:0,capHT:0,capLegacy:0};
         });
-    } else {
-        M = Object.values(perDayMetrics);
+    }else{M=Object.values(perDayMetrics);}
+    if(!labels.length)return;
+
+    const half=Math.max(1,Math.floor(labels.length/2)),fh=M.slice(0,half),sh=M.slice(half);
+    const avg=(a,k)=>a.length?a.reduce((s,m)=>s+m[k],0)/a.length:0;
+    const sum=(a,k)=>a.reduce((s,m)=>s+m[k],0);
+
+    // FIXED: Trend card with correct arrow logic
+    // higherIsBad=true means increase is BAD (red), decrease is GOOD (green)
+    // higherIsBad=false means increase is GOOD (green), decrease is BAD (red)
+    function tc(label,cur,prev,unit,higherIsBad,icon){
+        const diff=cur-prev,p=prev?((diff/prev)*100).toFixed(1):0;
+        let cls='neutral',arr='\u2194',arrowIcon='fa-minus';
+        if(Math.abs(diff)>0.5){
+            const isUp=diff>0;
+            if(isUp){
+                arr='\u2191';arrowIcon='fa-arrow-up';
+                cls=higherIsBad?'bad':'good';
+            }else{
+                arr='\u2193';arrowIcon='fa-arrow-down';
+                cls=higherIsBad?'good':'bad';
+            }
+        }
+        return '<div class="trend-card"><div class="trend-label"><i class="fas '+icon+'" style="margin-right:4px;"></i>'+label+'</div><div class="trend-value">'+((typeof cur==='number')?cur.toFixed(1):cur)+unit+'</div><div class="trend-delta '+cls+'"><i class="fas '+arrowIcon+'" style="font-size:9px;"></i> '+Math.abs(p)+'% vs prior half</div></div>';
     }
-    if (!labels.length) return;
+    const phs=M.length>0?(M.reduce((s,m)=>s+(m.podsOnline/(Math.max(1,m.podsOnline+m.podsOffline))*100),0)/M.length).toFixed(1):0;
 
-    // Trend cards
-    const half = Math.max(1, Math.floor(labels.length / 2));
-    const fh = M.slice(0, half), sh = M.slice(half);
-    const avg = (a, k) => a.length ? a.reduce((s, m) => s + m[k], 0) / a.length : 0;
-    const sum = (a, k) => a.reduce((s, m) => s + m[k], 0);
+    document.getElementById('trendSummary').innerHTML=
+        tc('Avg Clients/Day',avg(sh,'clients'),avg(fh,'clients'),'',false,'fa-users')+
+        tc('Total Disconnects',sum(sh,'disc'),sum(fh,'disc'),'',true,'fa-plug')+
+        tc('Avg Fleet Efficiency',avg(sh,'mcsEff'),avg(fh,'mcsEff'),'%',false,'fa-tachometer-alt')+
+        tc('Total Breaches',sum(sh,'breaches'),sum(fh,'breaches'),'',true,'fa-exclamation-triangle')+
+        tc('Avg Coverage Deficit',avg(sh,'covDeficit'),avg(fh,'covDeficit'),'',true,'fa-signal')+
+        tc('Sticky Events',sum(sh,'sticky'),sum(fh,'sticky'),'',true,'fa-magnet')+
+        tc('Pod Health Score',parseFloat(phs),parseFloat(phs),'%',false,'fa-server')+
+        tc('Avg 5G TOT',avg(sh,'tot5g'),avg(fh,'tot5g'),'%',false,'fa-broadcast-tower');
 
-    function tc(label, cur, prev, unit, invert, icon) {
-        const diff = cur - prev, p = prev ? ((diff / prev) * 100).toFixed(1) : 0;
-        let cls = 'flat', arr = '\u2192';
-        if (diff > 0.5) { cls = invert ? 'down' : 'up'; arr = '\u2191'; }
-        else if (diff < -0.5) { cls = invert ? 'up' : 'down'; arr = '\u2193'; }
-        return '<div class="trend-card"><div class="trend-label"><i class="fas ' + icon + '" style="margin-right:4px;"></i>' + label + '</div><div class="trend-value">' + ((typeof cur === 'number') ? cur.toFixed(1) : cur) + unit + '</div><div class="trend-delta ' + cls + '">' + arr + ' ' + Math.abs(p) + '% vs prior half</div></div>';
-    }
-    const phs = M.length > 0 ? (M.reduce((s, m) => s + (m.podsOnline / (Math.max(1, m.podsOnline + m.podsOffline)) * 100), 0) / M.length).toFixed(1) : 0;
-    const filterLabel = selectedUser !== "ALL" ? " (" + selectedUser + ")" : "";
+    const gc='rgba(42,50,65,0.4)',tc2='#6B7280';
+    const sx={grid:{color:gc},ticks:{color:'#9CA3AF',font:{size:10,family:"'Plus Jakarta Sans'"},maxRotation:45}};
+    const sy={grid:{color:gc},ticks:{color:tc2,font:{size:10}},beginAtZero:true};
+    const lg={position:'bottom',labels:{color:'#9CA3AF',font:{size:10,family:"'Plus Jakarta Sans'"},padding:10,usePointStyle:true}};
 
-    document.getElementById('trendSummary').innerHTML =
-        tc('Avg Clients/Day' + filterLabel, avg(sh, 'clients'), avg(fh, 'clients'), '', false, 'fa-users') +
-        tc('Total Disconnects', sum(sh, 'disc'), sum(fh, 'disc'), '', true, 'fa-plug') +
-        tc('Avg Fleet Efficiency', avg(sh, 'mcsEff'), avg(fh, 'mcsEff'), '%', false, 'fa-tachometer-alt') +
-        tc('Total Breaches', sum(sh, 'breaches'), sum(fh, 'breaches'), '', true, 'fa-exclamation-triangle') +
-        tc('Avg Coverage Deficit', avg(sh, 'covDeficit'), avg(fh, 'covDeficit'), '', true, 'fa-signal') +
-        tc('Sticky Events', sum(sh, 'sticky'), sum(fh, 'sticky'), '', true, 'fa-magnet') +
-        tc('Pod Health Score', parseFloat(phs), parseFloat(phs), '%', false, 'fa-server') +
-        tc('Avg 5G TOT', avg(sh, 'tot5g'), avg(fh, 'tot5g'), '%', false, 'fa-broadcast-tower');
-
-    // Chart defaults
-    const gc = 'rgba(42,50,65,0.4)', tc2 = '#6B7280';
-    const sx = { grid: { color: gc }, ticks: { color: '#9CA3AF', font: { size: 10, family: "'Plus Jakarta Sans'" }, maxRotation: 45 } };
-    const sy = { grid: { color: gc }, ticks: { color: tc2, font: { size: 10 } }, beginAtZero: true };
-    const lg = { position: 'bottom', labels: { color: '#9CA3AF', font: { size: 10, family: "'Plus Jakarta Sans'" }, padding: 10, usePointStyle: true } };
-
-    weeklyChartInstances.bandTOT = new Chart(document.getElementById('wkChartBandTOT'), {
-        type: 'line', data: { labels, datasets: [
-            { label: '5 GHz TOT', data: M.map(m => m.tot5g), backgroundColor: 'rgba(6,182,212,0.3)', borderColor: COLORS.cyan, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: COLORS.cyan },
-            { label: '2.4 GHz TOT', data: M.map(m => m.tot2g), backgroundColor: 'rgba(249,115,22,0.3)', borderColor: COLORS.orange, borderWidth: 2, fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: COLORS.orange }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: sx, y: { ...sy, stacked: true, max: 100, title: { display: true, text: 'Avg TOT %', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.capability = new Chart(document.getElementById('wkChartCapability'), {
-        type: 'bar', data: { labels, datasets: [
-            { label: 'WiFi 6E', data: M.map(m => m.capEHT), backgroundColor: 'rgba(139,92,246,0.7)', borderColor: COLORS.purple, borderWidth: 1, borderRadius: 3 },
-            { label: 'WiFi 6', data: M.map(m => m.capHE), backgroundColor: 'rgba(6,182,212,0.7)', borderColor: COLORS.cyan, borderWidth: 1, borderRadius: 3 },
-            { label: 'WiFi 5', data: M.map(m => m.capVHT), backgroundColor: 'rgba(59,130,246,0.7)', borderColor: COLORS.blue, borderWidth: 1, borderRadius: 3 },
-            { label: 'WiFi 4', data: M.map(m => m.capHT), backgroundColor: 'rgba(245,158,11,0.7)', borderColor: COLORS.amber, borderWidth: 1, borderRadius: 3 },
-            { label: 'Legacy', data: M.map(m => m.capLegacy), backgroundColor: 'rgba(107,114,128,0.5)', borderColor: '#6B7280', borderWidth: 1, borderRadius: 3 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ...sx, stacked: true }, y: { ...sy, stacked: true, title: { display: true, text: 'Clients', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.podHealth = new Chart(document.getElementById('wkChartPodHealth'), {
-        type: 'bar', data: { labels, datasets: [
-            { label: 'Online', data: M.map(m => m.podsOnline), backgroundColor: 'rgba(16,185,129,0.7)', borderColor: COLORS.green, borderWidth: 1, borderRadius: 4 },
-            { label: 'Offline', data: M.map(m => m.podsOffline), backgroundColor: 'rgba(239,68,68,0.7)', borderColor: COLORS.red, borderWidth: 1, borderRadius: 4 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ...sx, stacked: true }, y: { ...sy, stacked: true, title: { display: true, text: 'Pods', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.coverage = new Chart(document.getElementById('wkChartCoverage'), {
-        type: 'line', data: { labels, datasets: [
-            { label: 'Poor Cov 2.4G', data: M.map(m => m.avgPoorCov2), borderColor: COLORS.orange, backgroundColor: 'rgba(249,115,22,0.1)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.orange, borderWidth: 2 },
-            { label: 'Poor Cov 5G', data: M.map(m => m.avgPoorCov5), borderColor: COLORS.cyan, backgroundColor: 'rgba(6,182,212,0.1)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.cyan, borderWidth: 2 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: sx, y: { ...sy, title: { display: true, text: 'Avg Poor Coverage %', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.snr = new Chart(document.getElementById('wkChartSNR'), {
-        type: 'line', data: { labels, datasets: [
-            { label: 'Poor SNR 2.4G', data: M.map(m => m.avgPoorSnr2), borderColor: COLORS.amber, backgroundColor: 'rgba(245,158,11,0.1)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.amber, borderWidth: 2 },
-            { label: 'Poor SNR 5G', data: M.map(m => m.avgPoorSnr5), borderColor: COLORS.purple, backgroundColor: 'rgba(139,92,246,0.1)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.purple, borderWidth: 2 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: sx, y: { ...sy, title: { display: true, text: 'Avg Poor SNR %', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.mcs = new Chart(document.getElementById('wkChartMCS'), {
-        type: 'line', data: { labels, datasets: [
-            { label: 'Avg Poor MCS %', data: M.map(m => m.avgPoorMcs), borderColor: COLORS.red, backgroundColor: 'rgba(239,68,68,0.15)', fill: true, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.red, borderWidth: 2.5 },
-            { label: 'Fleet Efficiency %', data: M.map(m => m.mcsEff), borderColor: COLORS.green, backgroundColor: 'rgba(16,185,129,0.08)', fill: false, tension: 0.3, pointRadius: 4, pointBackgroundColor: COLORS.green, borderWidth: 2, borderDash: [5, 5] }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: sx, y: { ...sy, title: { display: true, text: '%', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.sticky = new Chart(document.getElementById('wkChartSticky'), {
-        type: 'bar', data: { labels, datasets: [
-            { label: 'Sticky 2.4G', data: M.map(m => m.sticky2g), backgroundColor: 'rgba(245,158,11,0.6)', borderColor: COLORS.amber, borderWidth: 2, borderRadius: 6 },
-            { label: 'Sticky 5G', data: M.map(m => m.sticky5g), backgroundColor: 'rgba(239,68,68,0.6)', borderColor: COLORS.red, borderWidth: 2, borderRadius: 6 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: sx, y: { ...sy, title: { display: true, text: 'Sticky Events', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.disconnects = new Chart(document.getElementById('wkChartDisconnects'), {
-        type: 'bar', data: { labels, datasets: [
-            { label: 'Disconnections', data: M.map(m => m.disc), backgroundColor: 'rgba(239,68,68,0.5)', borderColor: COLORS.red, borderWidth: 2, borderRadius: 6, order: 2 },
-            { label: 'Trend', data: M.map(m => m.disc), type: 'line', borderColor: COLORS.amber, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 4, pointBackgroundColor: COLORS.amber, tension: 0.3, order: 1 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: sx, y: { ...sy, title: { display: true, text: 'Count', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
-    weeklyChartInstances.uptime = new Chart(document.getElementById('wkChartUptime'), {
-        type: 'bar', data: { labels, datasets: [
-            { label: 'Excellent \u226595%', data: M.map(m => m.podsExcellent), backgroundColor: 'rgba(16,185,129,0.7)', borderColor: COLORS.green, borderWidth: 1, borderRadius: 4 },
-            { label: 'Degraded 50-95%', data: M.map(m => m.podsDegraded), backgroundColor: 'rgba(245,158,11,0.7)', borderColor: COLORS.amber, borderWidth: 1, borderRadius: 4 },
-            { label: 'Critical <50%', data: M.map(m => m.podsCritical), backgroundColor: 'rgba(239,68,68,0.7)', borderColor: COLORS.red, borderWidth: 1, borderRadius: 4 }
-        ] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { ...sx, stacked: true }, y: { ...sy, stacked: true, title: { display: true, text: 'Pods', color: tc2, font: { size: 10 } } } }, plugins: { legend: lg } }
-    });
+    weeklyChartInstances.bandTOT=new Chart(document.getElementById('wkChartBandTOT'),{type:'line',data:{labels,datasets:[{label:'5 GHz TOT',data:M.map(m=>m.tot5g),backgroundColor:'rgba(6,182,212,0.3)',borderColor:COLORS.cyan,borderWidth:2,fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:COLORS.cyan},{label:'2.4 GHz TOT',data:M.map(m=>m.tot2g),backgroundColor:'rgba(249,115,22,0.3)',borderColor:COLORS.orange,borderWidth:2,fill:true,tension:0.3,pointRadius:4,pointBackgroundColor:COLORS.orange}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:sx,y:{...sy,stacked:true,max:100,title:{display:true,text:'Avg TOT %',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.capability=new Chart(document.getElementById('wkChartCapability'),{type:'bar',data:{labels,datasets:[{label:'WiFi 6E',data:M.map(m=>m.capEHT),backgroundColor:'rgba(139,92,246,0.7)',borderColor:COLORS.purple,borderWidth:1,borderRadius:3},{label:'WiFi 6',data:M.map(m=>m.capHE),backgroundColor:'rgba(6,182,212,0.7)',borderColor:COLORS.cyan,borderWidth:1,borderRadius:3},{label:'WiFi 5',data:M.map(m=>m.capVHT),backgroundColor:'rgba(59,130,246,0.7)',borderColor:COLORS.blue,borderWidth:1,borderRadius:3},{label:'WiFi 4',data:M.map(m=>m.capHT),backgroundColor:'rgba(245,158,11,0.7)',borderColor:COLORS.amber,borderWidth:1,borderRadius:3},{label:'Legacy',data:M.map(m=>m.capLegacy),backgroundColor:'rgba(107,114,128,0.5)',borderColor:'#6B7280',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{...sx,stacked:true},y:{...sy,stacked:true,title:{display:true,text:'Clients',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.podHealth=new Chart(document.getElementById('wkChartPodHealth'),{type:'bar',data:{labels,datasets:[{label:'Online',data:M.map(m=>m.podsOnline),backgroundColor:'rgba(16,185,129,0.7)',borderColor:COLORS.green,borderWidth:1,borderRadius:4},{label:'Offline',data:M.map(m=>m.podsOffline),backgroundColor:'rgba(239,68,68,0.7)',borderColor:COLORS.red,borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{...sx,stacked:true},y:{...sy,stacked:true,title:{display:true,text:'Pods',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.coverage=new Chart(document.getElementById('wkChartCoverage'),{type:'line',data:{labels,datasets:[{label:'Poor Cov 2.4G',data:M.map(m=>m.avgPoorCov2),borderColor:COLORS.orange,backgroundColor:'rgba(249,115,22,0.1)',fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:COLORS.orange,borderWidth:2},{label:'Poor Cov 5G',data:M.map(m=>m.avgPoorCov5),borderColor:COLORS.cyan,backgroundColor:'rgba(6,182,212,0.1)',fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:COLORS.cyan,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:sx,y:{...sy,title:{display:true,text:'Avg Poor Cov %',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.snr=new Chart(document.getElementById('wkChartSNR'),{type:'line',data:{labels,datasets:[{label:'Poor SNR 2.4G',data:M.map(m=>m.avgPoorSnr2),borderColor:COLORS.amber,backgroundColor:'rgba(245,158,11,0.1)',fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:COLORS.amber,borderWidth:2},{label:'Poor SNR 5G',data:M.map(m=>m.avgPoorSnr5),borderColor:COLORS.purple,backgroundColor:'rgba(139,92,246,0.1)',fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:COLORS.purple,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:sx,y:{...sy,title:{display:true,text:'Avg Poor SNR %',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.mcs=new Chart(document.getElementById('wkChartMCS'),{type:'line',data:{labels,datasets:[{label:'Avg Poor MCS %',data:M.map(m=>m.avgPoorMcs),borderColor:COLORS.red,backgroundColor:'rgba(239,68,68,0.15)',fill:true,tension:0.3,pointRadius:5,pointBackgroundColor:COLORS.red,borderWidth:2.5},{label:'Fleet Efficiency %',data:M.map(m=>m.mcsEff),borderColor:COLORS.green,backgroundColor:'rgba(16,185,129,0.08)',fill:false,tension:0.3,pointRadius:4,pointBackgroundColor:COLORS.green,borderWidth:2,borderDash:[5,5]}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:sx,y:{...sy,title:{display:true,text:'%',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.sticky=new Chart(document.getElementById('wkChartSticky'),{type:'bar',data:{labels,datasets:[{label:'Sticky 2.4G',data:M.map(m=>m.sticky2g),backgroundColor:'rgba(245,158,11,0.6)',borderColor:COLORS.amber,borderWidth:2,borderRadius:6},{label:'Sticky 5G',data:M.map(m=>m.sticky5g),backgroundColor:'rgba(239,68,68,0.6)',borderColor:COLORS.red,borderWidth:2,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:sx,y:{...sy,title:{display:true,text:'Sticky Events',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.disconnects=new Chart(document.getElementById('wkChartDisconnects'),{type:'bar',data:{labels,datasets:[{label:'Disconnections',data:M.map(m=>m.disc),backgroundColor:'rgba(239,68,68,0.5)',borderColor:COLORS.red,borderWidth:2,borderRadius:6,order:2},{label:'Trend',data:M.map(m=>m.disc),type:'line',borderColor:COLORS.amber,backgroundColor:'transparent',borderWidth:2,pointRadius:4,pointBackgroundColor:COLORS.amber,tension:0.3,order:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:sx,y:{...sy,title:{display:true,text:'Count',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
+    weeklyChartInstances.uptime=new Chart(document.getElementById('wkChartUptime'),{type:'bar',data:{labels,datasets:[{label:'Excellent \u226595%',data:M.map(m=>m.podsExcellent),backgroundColor:'rgba(16,185,129,0.7)',borderColor:COLORS.green,borderWidth:1,borderRadius:4},{label:'Degraded 50-95%',data:M.map(m=>m.podsDegraded),backgroundColor:'rgba(245,158,11,0.7)',borderColor:COLORS.amber,borderWidth:1,borderRadius:4},{label:'Critical <50%',data:M.map(m=>m.podsCritical),backgroundColor:'rgba(239,68,68,0.7)',borderColor:COLORS.red,borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{...sx,stacked:true},y:{...sy,stacked:true,title:{display:true,text:'Pods',color:tc2,font:{size:10}}}},plugins:{legend:lg}}});
 };
 
-// 5. OVERRIDE generateExecutiveSummary to respect user filter
-const _origExecSummary = generateExecutiveSummary;
-generateExecutiveSummary = function() {
-    const container = document.getElementById('executiveSummaryContainer');
-    const labels = Object.keys(perDayMetrics); const M = Object.values(perDayMetrics);
-    if (!labels.length) { container.innerHTML = ''; return; }
 
-    const selectedUser = document.getElementById("headerUserFilter")?.value || "ALL";
-    const allUsers = selectedUser !== "ALL"
-        ? [selectedUser].filter(u => perDayPerUserMetrics[u])
-        : Object.keys(perDayPerUserMetrics);
-
-    let critCount = 0, warnCount = 0, stableCount = 0;
-    const topIssues = { cov: 0, mcs: 0, disc: 0, sticky: 0, pod: 0, band: 0 };
-    allUsers.forEach(u => {
-        const analysis = detectUserIssues(u);
-        if (analysis.severity === 'critical') critCount++;
-        else if (analysis.severity === 'warning') warnCount++;
-        else stableCount++;
-        analysis.issues.forEach(i => { topIssues[i] = (topIssues[i] || 0) + 1; });
+// ---- 9. OVERRIDE generateExecutiveSummary (SOFTER TONE + FILTER) ----
+generateExecutiveSummary=function(){
+    const container=document.getElementById('executiveSummaryContainer');
+    const labels=Object.keys(perDayMetrics);const M=Object.values(perDayMetrics);
+    if(!labels.length){container.innerHTML='';return;}
+    const selectedUser=document.getElementById("headerUserFilter")?.value||"ALL";
+    const allUsers=selectedUser!=="ALL"?[selectedUser].filter(u=>perDayPerUserMetrics[u]):Object.keys(perDayPerUserMetrics);
+    let attentionCount=0,monitorCount=0,healthyCount=0;
+    const topIssues={cov:0,mcs:0,disc:0,sticky:0,pod:0,band:0};
+    allUsers.forEach(u=>{
+        const a=detectUserIssues(u);
+        if(a.severity==='critical')attentionCount++;
+        else if(a.severity==='warning')monitorCount++;
+        else healthyCount++;
+        a.issues.forEach(i=>{topIssues[i]=(topIssues[i]||0)+1;});
     });
+    const total=allUsers.length;
+    const healthPct=total>0?((healthyCount/total)*100).toFixed(0):100;
+    let scoreClass='good',scoreLabel='\u2705 Looking Great',scoreIcon='fa-check-circle';
+    if(healthPct<50){scoreClass='attention';scoreLabel='\u26A0\uFE0F Needs Attention';scoreIcon='fa-info-circle';}
+    else if(healthPct<75){scoreClass='fair';scoreLabel='\uD83D\uDD0D Worth Monitoring';scoreIcon='fa-eye';}
 
-    const total = allUsers.length;
-    const healthPct = total > 0 ? ((stableCount / total) * 100).toFixed(0) : 100;
-    let healthClass = 'healthy'; let healthLabel = 'HEALTHY';
-    if (healthPct < 50) { healthClass = 'critical'; healthLabel = 'CRITICAL'; }
-    else if (healthPct < 75) { healthClass = 'degraded'; healthLabel = 'DEGRADED'; }
+    const avgClients=M.length?(M.reduce((s,m)=>s+m.clients,0)/M.length).toFixed(0):0;
+    const totalDisc=M.reduce((s,m)=>s+m.disc,0);
+    const avgEff=M.length?(M.reduce((s,m)=>s+m.mcsEff,0)/M.length).toFixed(1):0;
+    const issueLabels={cov:'Coverage',mcs:'Link Speed',disc:'Disconnections',sticky:'Band Steering',pod:'Pod Health',band:'Band Usage'};
+    const sortedIssues=Object.entries(topIssues).filter(([k,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    const topIssueHtml=sortedIssues.map(([k,v])=>'<span class="issue-tag '+k+'">'+issueLabels[k]+' ('+v+')</span>').join('');
+    const filterNote=selectedUser!=="ALL"?' <span style="color:var(--accent);font-size:12px;font-weight:600;">['+selectedUser+']</span>':'';
 
-    const avgClients = M.length > 0 ? (M.reduce((s, m) => s + m.clients, 0) / M.length).toFixed(0) : 0;
-    const totalDisc = M.reduce((s, m) => s + m.disc, 0);
-    const avgEff = M.length > 0 ? (M.reduce((s, m) => s + m.mcsEff, 0) / M.length).toFixed(1) : 0;
+    // Highlight positive things
+    const positiveBits=[];
+    if(parseFloat(avgEff)>=85)positiveBits.push('<i class="fas fa-star" style="color:var(--warning);"></i> Fleet efficiency is strong at <strong>'+avgEff+'%</strong>');
+    if(healthyCount>0)positiveBits.push('<i class="fas fa-heart" style="color:var(--success);"></i> <strong>'+healthyCount+'</strong> user'+(healthyCount>1?'s':'')+' running smoothly');
+    if(totalDisc<50)positiveBits.push('<i class="fas fa-wifi" style="color:var(--cyan);"></i> Disconnections are low across the fleet');
+    const posHtml=positiveBits.length?'<div style="margin-top:12px;padding:12px;background:var(--success-bg);border-radius:10px;border:1px solid rgba(16,185,129,0.2);">'+positiveBits.map(p=>'<div style="font-size:12px;color:var(--text-dim);line-height:1.8;">'+p+'</div>').join('')+'</div>':'';
 
-    const issueLabels = { cov: 'Coverage Deficit', mcs: 'MCS Bottleneck', disc: 'High Disconnections', sticky: 'Sticky Clients', pod: 'Pod Issues', band: 'Band Steering' };
-    const sortedIssues = Object.entries(topIssues).filter(([k, v]) => v > 0).sort((a, b) => b[1] - a[1]);
-    const topIssueHtml = sortedIssues.map(([k, v]) => '<span class="issue-tag ' + k + '">' + issueLabels[k] + ' (' + v + ' users)</span>').join('');
-    const filterNote = selectedUser !== "ALL" ? ' <span style="color:var(--accent);font-size:12px;">[Filtered: ' + selectedUser + ']</span>' : '';
-
-    container.innerHTML = '<div class="executive-summary"><div class="exec-title"><i class="fas fa-brain" style="color:var(--purple);"></i> Fleet Executive Summary' + filterNote + ' <span class="exec-score ' + healthClass + '"><i class="fas fa-shield-alt"></i> ' + healthLabel + ' (' + healthPct + '%)</span></div><div class="exec-body"><div class="exec-stat"><strong>' + total + '</strong> users analyzed over <strong>' + labels.length + '</strong> days<br><strong style="color:var(--danger);">' + critCount + '</strong> critical &middot; <strong style="color:var(--warning);">' + warnCount + '</strong> warning &middot; <strong style="color:var(--success);">' + stableCount + '</strong> stable<br>Avg <strong>' + avgClients + '</strong> clients/day &middot; Fleet Efficiency <strong>' + avgEff + '%</strong></div><div class="exec-stat">Total Disconnections: <strong style="color:var(--danger);">' + totalDisc.toLocaleString() + '</strong><br>Top Fleet Issues: ' + (topIssueHtml || '<span style="color:var(--success);">None detected</span>') + '<br>Analysis Period: <strong>' + labels[0] + '</strong> &rarr; <strong>' + labels[labels.length - 1] + '</strong></div></div></div>';
+    container.innerHTML='<div class="executive-summary"><div class="exec-title"><i class="fas fa-clipboard-check" style="color:var(--purple);"></i> Fleet Health Summary'+filterNote+' <span class="exec-score '+scoreClass+'"><i class="fas '+scoreIcon+'"></i> '+scoreLabel+' ('+healthPct+'%)</span></div><div class="exec-body"><div class="exec-stat"><strong>'+total+'</strong> user'+(total>1?'s':'')+' analyzed over <strong>'+labels.length+'</strong> days<br><strong style="color:#fb923c;">'+attentionCount+'</strong> need attention &middot; <strong style="color:#eab308;">'+monitorCount+'</strong> to monitor &middot; <strong style="color:var(--success);">'+healthyCount+'</strong> healthy<br>Avg <strong>'+avgClients+'</strong> clients/day &middot; Efficiency <strong>'+avgEff+'%</strong>'+posHtml+'</div><div class="exec-stat">Total Disconnections: <strong>'+totalDisc.toLocaleString()+'</strong><br>Areas to Review: '+(topIssueHtml||'<span style="color:var(--success);">All clear \u2714</span>')+'<br>Period: <strong>'+labels[0]+'</strong> &rarr; <strong>'+labels[labels.length-1]+'</strong></div></div></div>';
 };
 
-// 6. OVERRIDE generateUserInsights to respect user filter
-const _origUserInsights = generateUserInsights;
-generateUserInsights = function() {
-    const grid = document.getElementById('insightGrid');
-    const selectedUser = document.getElementById("headerUserFilter")?.value || "ALL";
-    const allUsers = selectedUser !== "ALL"
-        ? [selectedUser].filter(u => perDayPerUserMetrics[u])
-        : Object.keys(perDayPerUserMetrics).sort();
+// ---- 10. OVERRIDE generateUserInsights (FRIENDLY TONE + FILTER) ----
+generateUserInsights=function(){
+    const grid=document.getElementById('insightGrid');
+    const selectedUser=document.getElementById("headerUserFilter")?.value||"ALL";
+    const allUsers=selectedUser!=="ALL"?[selectedUser].filter(u=>perDayPerUserMetrics[u]):Object.keys(perDayPerUserMetrics).sort();
+    if(!allUsers.length){grid.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted);"><i class="fas fa-inbox" style="font-size:24px;margin-bottom:10px;display:block;"></i>No user data available for insights.</div>';return;}
 
-    if (!allUsers.length) { grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">No user data available for insights.</div>'; return; }
+    // Map severity to softer labels
+    const sevMap={critical:'needs-attention',warning:'monitor',stable:'healthy'};
+    const sevLabels={critical:'Needs Attention',warning:'Monitor',stable:'Healthy'};
+    const sevIcons={critical:'fa-info-circle',warning:'fa-eye',stable:'fa-check-circle'};
+    const trendLabels={improving:'<span class="trend-arrow improving"><i class="fas fa-chart-line"></i> Improving</span>',degrading:'<span class="trend-arrow degrading"><i class="fas fa-chart-line"></i> Declining</span>',stable:'<span class="trend-arrow stable-trend"><i class="fas fa-minus"></i> Steady</span>'};
 
-    let html = '';
-    allUsers.forEach(user => {
-        const analysis = detectUserIssues(user);
-        const trendIcon = analysis.trend === 'improving' ? '<span class="trend-arrow improving"><i class="fas fa-arrow-down"></i> Improving</span>' : analysis.trend === 'degrading' ? '<span class="trend-arrow degrading"><i class="fas fa-arrow-up"></i> Degrading</span>' : '<span class="trend-arrow stable-trend"><i class="fas fa-minus"></i> Stable</span>';
-        const obsHtml = analysis.observations.map(o => '<li>' + o + '</li>').join('');
-        const stepsHtml = analysis.nextSteps.map(s => '<li>' + s + '</li>').join('');
-        const tagsHtml = analysis.issues.map(i => {
-            const labels = { cov: 'Coverage', mcs: 'MCS', disc: 'Disconn.', sticky: 'Sticky', pod: 'Pod', band: 'Band' };
-            return '<span class="issue-tag ' + i + '">' + labels[i] + '</span>';
-        }).join('');
+    let html='';
+    allUsers.forEach(user=>{
+        const a=detectUserIssues(user);
+        const sev=sevMap[a.severity]||'healthy';
+        const sevLabel=sevLabels[a.severity]||'Healthy';
+        const sevIcon=sevIcons[a.severity]||'fa-check-circle';
+        const ti=trendLabels[a.trend]||trendLabels.stable;
 
-        html += '<div class="insight-card sev-' + analysis.severity + '"><div class="insight-header"><div><div class="insight-user">' + user + '</div><div class="insight-vendor">' + (analysis.vendor || 'Unknown') + ' ' + trendIcon + '</div></div><span class="severity-badge ' + analysis.severity + '"><i class="fas fa-' + (analysis.severity === 'critical' ? 'exclamation-circle' : analysis.severity === 'warning' ? 'exclamation-triangle' : 'check-circle') + '"></i> ' + analysis.severity.toUpperCase() + '</span></div><div class="insight-observations"><div class="insight-section-label"><i class="fas fa-search-plus" style="margin-right:4px;"></i> Key Observations</div><ul>' + obsHtml + '</ul></div><div class="insight-next-steps"><div class="insight-section-label"><i class="fas fa-wrench" style="margin-right:4px;"></i> Recommended Actions</div><ul>' + stepsHtml + '</ul></div>' + (tagsHtml ? '<div class="issue-tags">' + tagsHtml + '</div>' : '') + '</div>';
+        // Make observations friendlier
+        const friendlyObs=a.observations.map(o=>o.replace('detected','observed').replace('High disconnections','Elevated disconnections').replace('Critical MCS bottleneck','Notable link speed limitation'));
+        // Make next steps friendlier  
+        const friendlySteps=a.nextSteps.map(s=>s.replace('required','recommended').replace('Critical','Notable'));
+
+        const obsHtml=friendlyObs.map(o=>'<li>'+o+'</li>').join('');
+        const stepsHtml=friendlySteps.map(s=>'<li>'+s+'</li>').join('');
+        const tagsHtml=a.issues.map(i=>{const l={cov:'Coverage',mcs:'Link Speed',disc:'Connectivity',sticky:'Band Steering',pod:'Pod Health',band:'Band Usage'};return'<span class="issue-tag '+i+'">'+l[i]+'</span>';}).join('');
+
+        html+='<div class="insight-card sev-'+sev+'"><div class="insight-header"><div><div class="insight-user">'+user+'</div><div class="insight-vendor">'+(a.vendor||'Unknown')+' '+ti+'</div></div><span class="severity-badge '+sev+'"><i class="fas '+sevIcon+'"></i> '+sevLabel+'</span></div><div class="insight-observations"><div class="insight-section-label"><i class="fas fa-search-plus" style="margin-right:4px;"></i> Observations</div><ul>'+obsHtml+'</ul></div><div class="insight-next-steps"><div class="insight-section-label"><i class="fas fa-lightbulb" style="margin-right:4px;"></i> Suggestions</div><ul>'+stepsHtml+'</ul></div>'+(tagsHtml?'<div class="issue-tags">'+tagsHtml+'</div>':'')+'</div>';
     });
-    grid.innerHTML = html;
+    grid.innerHTML=html;
 };
 
 // ============================================================
-// END OF HEADER USER FILTER PATCH
+// END OF ENHANCEMENT PATCH
 // ============================================================
+
 
 initTheme();
 boot();
