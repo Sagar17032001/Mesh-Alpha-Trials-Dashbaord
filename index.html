@@ -226,7 +226,7 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 <select id="dateFrom" class="date-dd"></select>
 <span style="font-size:10px;color:var(--text-muted);font-weight:700;">TO</span>
 <select id="dateTo" class="date-dd"></select>
-<button class="btn-apply-range" onclick="applyDateRange()"><i class="fas fa-chart-line"></i> ANALYZE</button>
+<button class="btn-apply-range" onclick="handleAnalyzeClick()"><i class="fas fa-chart-line"></i> ANALYZE</button>
 </div>
 <div style="height:30px;width:1px;background:var(--border);"></div>
 <div style="font-family:monospace;font-size:13px;color:var(--text-dim);display:flex;align-items:center;gap:10px;">
@@ -2153,6 +2153,365 @@ if (insightHeading) {
 console.log('%c[AIRTEL MESHALPHA] Rebrand patch applied successfully.', 'color:#ED1C24;font-weight:bold;font-size:12px;');
 
 })();
+
+
+
+// ============================================================
+// ANALYZE BUTTON + FULL-PAGE LOADER PATCH
+// ============================================================
+//
+// STEP 1: Replace your ANALYZE button HTML:
+//
+//   OLD:
+//     <button class="btn-apply-range" onclick="applyDateRange()">
+//       <i class="fas fa-chart-line"></i> ANALYZE
+//     </button>
+//
+//   NEW:
+//     <button class="btn-apply-range" id="analyzeBtn" onclick="handleAnalyzeClick()">
+//       <i class="fas fa-chart-line"></i>
+//       <span class="btn-text">ANALYZE</span>
+//     </button>
+//
+// STEP 2: Paste EVERYTHING below BEFORE initTheme()/boot()
+//
+// ============================================================
+
+// ---- 1. INJECT CSS ----
+(function injectAnalyzeCSS() {
+    const s = document.createElement('style');
+    s.id = 'analyzeLoaderCSS';
+    s.textContent = `
+    /* === FULL-PAGE ANALYZE LOADER === */
+    .analyze-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: var(--bg, #0B0E14);
+        z-index: 9999;
+        display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        gap: 28px;
+        opacity: 0; pointer-events: none;
+        transition: opacity 0.4s ease;
+    }
+    .analyze-overlay.active {
+        opacity: 1; pointer-events: all;
+    }
+    .analyze-overlay.fade-out {
+        opacity: 0; pointer-events: none;
+    }
+
+    /* Triple ring spinner */
+    .az-spinner { width: 72px; height: 72px; position: relative; }
+    .az-spinner .az-ring {
+        position: absolute; width: 100%; height: 100%;
+        border: 3px solid transparent; border-radius: 50%;
+        animation: azSpin 1.2s ease-in-out infinite;
+    }
+    .az-spinner .az-ring:nth-child(1) {
+        border-top-color: var(--at-red, var(--accent, #3b82f6));
+    }
+    .az-spinner .az-ring:nth-child(2) {
+        width: 56px; height: 56px; top: 8px; left: 8px;
+        border-right-color: var(--purple, #8b5cf6);
+        animation-delay: 0.15s;
+        animation-direction: reverse;
+    }
+    .az-spinner .az-ring:nth-child(3) {
+        width: 40px; height: 40px; top: 16px; left: 16px;
+        border-bottom-color: var(--cyan, #06b6d4);
+        animation-delay: 0.3s;
+    }
+    .az-center-dot {
+        position: absolute; top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 10px; height: 10px; border-radius: 50%;
+        background: var(--at-red, var(--accent, #3b82f6));
+        animation: azPulse 1.5s ease-in-out infinite;
+        box-shadow: 0 0 16px var(--at-red, var(--accent, #3b82f6));
+    }
+    @keyframes azSpin { to { transform: rotate(360deg); } }
+    @keyframes azPulse {
+        0%, 100% { opacity: 0.4; transform: translate(-50%,-50%) scale(0.85); }
+        50%      { opacity: 1;   transform: translate(-50%,-50%) scale(1.15); }
+    }
+
+    /* Brand text */
+    .az-brand {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 20px; font-weight: 800;
+        letter-spacing: -0.3px;
+    }
+    .az-brand .ab-airtel { color: var(--at-red, var(--accent, #3b82f6)); font-weight: 900; }
+    .az-brand .ab-mesh   { color: var(--text-main, #F3F4F6); }
+    .az-brand .ab-alpha  { color: var(--accent, #3b82f6); }
+
+    /* Status text */
+    .az-status {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 13px; font-weight: 700;
+        color: var(--text-dim, #9CA3AF);
+        letter-spacing: 0.3px;
+        min-height: 20px;
+        transition: all 0.3s;
+    }
+    .az-sub {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 11px; font-weight: 500;
+        color: var(--text-muted, #6B7280);
+        min-height: 16px; margin-top: -16px;
+    }
+
+    /* Progress bar */
+    .az-bar-wrap {
+        width: 260px; height: 4px;
+        background: var(--border, #2A3241);
+        border-radius: 4px; overflow: hidden;
+        margin-top: -10px;
+    }
+    .az-bar-fill {
+        height: 100%; width: 0%; border-radius: 4px;
+        background: linear-gradient(90deg,
+            var(--at-red, var(--accent, #3b82f6)),
+            var(--purple, #8b5cf6),
+            var(--cyan, #06b6d4));
+        background-size: 200% 100%;
+        animation: azBarShift 2s ease infinite;
+        transition: width 0.4s ease;
+    }
+    @keyframes azBarShift { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
+
+    /* Progress counter */
+    .az-counter {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 11px; font-weight: 700;
+        color: var(--text-muted, #6B7280);
+        min-height: 16px; margin-top: -14px;
+        letter-spacing: 1px;
+    }
+
+    /* === BUTTON LOADING STATE === */
+    .btn-apply-range { transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-apply-range.loading {
+        background: var(--at-red, var(--accent)) !important;
+        border-color: var(--at-red, var(--accent)) !important;
+        cursor: not-allowed; opacity: 0.95;
+    }
+    .btn-apply-range.loading .btn-text { letter-spacing: 0.5px; }
+    .az-btn-spinner {
+        width: 14px; height: 14px;
+        border: 2.5px solid rgba(255,255,255,0.3);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: azSpin 0.7s linear infinite;
+        display: inline-block;
+    }
+
+    /* === COMPLETION FLASH === */
+    .az-complete-flash {
+        position: fixed; top: 50%; left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        width: 70px; height: 70px;
+        background: var(--at-red, var(--accent));
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10000; opacity: 0;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .az-complete-flash.show {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+    .az-complete-flash i {
+        color: white; font-size: 28px;
+    }
+    `;
+    document.head.appendChild(s);
+})();
+
+// ---- 2. CREATE OVERLAY DOM ----
+(function createAnalyzeOverlay() {
+    const ov = document.createElement('div');
+    ov.id = 'analyzeOverlay';
+    ov.className = 'analyze-overlay';
+    ov.innerHTML = `
+        <div class="az-spinner">
+            <div class="az-ring"></div>
+            <div class="az-ring"></div>
+            <div class="az-ring"></div>
+            <div class="az-center-dot"></div>
+        </div>
+        <div class="az-brand">
+            <span class="ab-airtel">airtel</span>
+            <span class="ab-mesh"> Mesh</span><span class="ab-alpha">Alpha</span>
+        </div>
+        <div class="az-status" id="azStatus">Preparing Range Analysis...</div>
+        <div class="az-sub" id="azSub"></div>
+        <div class="az-bar-wrap"><div class="az-bar-fill" id="azBar"></div></div>
+        <div class="az-counter" id="azCounter"></div>
+    `;
+    document.body.appendChild(ov);
+
+    // Completion flash
+    const flash = document.createElement('div');
+    flash.id = 'azFlash';
+    flash.className = 'az-complete-flash';
+    flash.innerHTML = '<i class="fas fa-check"></i>';
+    document.body.appendChild(flash);
+})();
+
+// ---- 3. OVERLAY HELPERS ----
+function showAnalyzeOverlay() {
+    const ov = document.getElementById('analyzeOverlay');
+    if (ov) { ov.classList.remove('fade-out'); ov.classList.add('active'); }
+}
+function updateAnalyzeOverlay(status, sub, pct, counter) {
+    const s = document.getElementById('azStatus');
+    const sb = document.getElementById('azSub');
+    const b = document.getElementById('azBar');
+    const c = document.getElementById('azCounter');
+    if (s) s.textContent = status || '';
+    if (sb) sb.textContent = sub || '';
+    if (b) b.style.width = (pct || 0) + '%';
+    if (c) c.textContent = counter || '';
+}
+function hideAnalyzeOverlay() {
+    // Flash checkmark
+    const flash = document.getElementById('azFlash');
+    if (flash) {
+        flash.classList.add('show');
+        setTimeout(() => flash.classList.remove('show'), 800);
+    }
+    // Fade out overlay
+    setTimeout(() => {
+        const ov = document.getElementById('analyzeOverlay');
+        if (ov) { ov.classList.add('fade-out'); ov.classList.remove('active'); }
+    }, 500);
+}
+
+// ---- 4. BUTTON STATE HELPERS ----
+function setAnalyzeBtnLoading() {
+    const btn = document.getElementById('analyzeBtn');
+    if (!btn) return;
+    btn.classList.add('loading');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="az-btn-spinner"></span><span class="btn-text">Analyzing\u2026</span>';
+}
+function resetAnalyzeBtn() {
+    const btn = document.getElementById('analyzeBtn');
+    if (!btn) return;
+    btn.classList.remove('loading');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-chart-line"></i><span class="btn-text">ANALYZE</span>';
+}
+
+// ---- 5. CLICK HANDLER ----
+function handleAnalyzeClick() {
+    setAnalyzeBtnLoading();
+    showAnalyzeOverlay();
+    updateAnalyzeOverlay('Preparing Range Analysis...', 'Validating date selection', 2, '');
+
+    // Small async delay to let overlay paint
+    setTimeout(() => {
+        Promise.resolve(applyDateRange())
+            .then(() => {
+                updateAnalyzeOverlay('Analysis Complete!', 'Rendering insights...', 100, '\u2714');
+                hideAnalyzeOverlay();
+            })
+            .catch(err => {
+                console.error('Analyze error:', err);
+                updateAnalyzeOverlay('Analysis Failed', err.message || 'Check console for details', 0, '\u2718');
+                setTimeout(hideAnalyzeOverlay, 1500);
+            })
+            .finally(() => {
+                setTimeout(resetAnalyzeBtn, 600);
+            });
+    }, 100);
+}
+
+// ---- 6. OVERRIDE applyDateRange WITH PROGRESS ----
+applyDateRange = async function() {
+    const fromIdx = parseInt(document.getElementById('dateFrom').value);
+    const toIdx = parseInt(document.getElementById('dateTo').value);
+    if (fromIdx > toIdx) {
+        hideAnalyzeOverlay();
+        resetAnalyzeBtn();
+        alert('FROM date must be before TO date.');
+        return;
+    }
+
+    const display = document.getElementById('fleetDisplay');
+    display.innerHTML = '';
+
+    const selectedFiles = FILE_LIST.slice(fromIdx, toIdx + 1);
+    const totalFiles = selectedFiles.length;
+    perDayMetrics = {}; perDayPerUserMetrics = {};
+    let allRows = []; fileClientData = {};
+
+    for (let i = 0; i < totalFiles; i++) {
+        const f = selectedFiles[i];
+        const label = f.replace('filtered_mesh_output_', '').replace('.csv', '').replace(/_/g, ' ');
+        const pct = 5 + Math.round((i / totalFiles) * 70);
+
+        updateAnalyzeOverlay(
+            'Loading Fleet Data...',
+            label,
+            pct,
+            (i + 1) + ' / ' + totalFiles + ' files'
+        );
+
+        try {
+            const res = await fetch(f);
+            const text = await res.text();
+            const parsed = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+            const normalized = parsed.data.map(normalizeRow);
+            allRows = allRows.concat(normalized);
+            fileClientData[f] = normalized.filter(r => isClientRow(r));
+
+            const dayM = computeDayMetrics(normalized);
+            perDayMetrics[label] = dayM;
+            Object.keys(dayM.perUser).forEach(u => {
+                if (!perDayPerUserMetrics[u]) perDayPerUserMetrics[u] = {};
+                perDayPerUserMetrics[u][label] = dayM.perUser[u];
+            });
+        } catch (e) {
+            console.warn('Failed to load: ' + f, e);
+        }
+    }
+
+    updateAnalyzeOverlay('Processing Telemetry...', 'Deduplicating clients & computing diagnostics', 80, totalFiles + ' / ' + totalFiles + ' files');
+    await new Promise(r => setTimeout(r, 150));
+
+    processData(allRows);
+
+    updateAnalyzeOverlay('Building Time-Series Charts...', 'Rendering 9 analytical views', 90, '');
+    await new Promise(r => setTimeout(r, 150));
+
+    const labels = Object.keys(perDayMetrics);
+    document.getElementById('rangeLabel').textContent = labels[0] + ' \u2192 ' + labels[labels.length - 1] + ' (' + labels.length + ' days)';
+    document.getElementById('weeklyInsightsSection').classList.add('active');
+    renderWeeklyInsightsV2();
+
+    updateAnalyzeOverlay('Generating Executive Summary...', 'AI-powered fleet health analysis', 95, '');
+    await new Promise(r => setTimeout(r, 150));
+
+    generateExecutiveSummary();
+    generateUserInsights();
+
+    updateAnalyzeOverlay('Analysis Complete!', labels.length + ' days \u2022 ' + Object.keys(perDayPerUserMetrics).length + ' users analyzed', 100, '\u2714 Done');
+
+    // Update last refreshed if available
+    const lrt = document.getElementById('lastRefreshTime');
+    if (lrt) lrt.textContent = 'Refreshed ' + new Date().toLocaleTimeString();
+
+    // Smooth scroll to results
+    setTimeout(() => {
+        document.getElementById('weeklyInsightsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 800);
+};
+
+// ============================================================
+// END — ANALYZE BUTTON + FULL-PAGE LOADER PATCH
+// ============================================================
 
 
 initTheme();
