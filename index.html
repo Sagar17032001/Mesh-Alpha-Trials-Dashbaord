@@ -2935,6 +2935,334 @@ async function exportRangeReportPNG() {
 // ============================================================
 
 
+// ============================================================
+// CHART FIXES PATCH v2 — Band TOT + Pod Health + Pod Uptime
+// Parses extender details from mesh_alpha_users.json
+// Shows "Total Expected" ONLY for users active in that day's data
+// Paste BEFORE initTheme()/boot()
+// ============================================================
+
+// ---- GLOBALS ----
+let serialToBase = {};     // "NKOT0F01CE7E" → "Shashwat Sharma"
+let basePodCount = {};     // "Shashwat Sharma" → 3 (Root + 2 Extenders)
+let fullNameToBase = {};   // "Shashwat Sharma Root" → "Shashwat Sharma"
+
+// ---- Extract base household name ----
+function extractBaseName(fullName) {
+    if (!fullName) return fullName;
+    return fullName.replace(/\s+(Root|Ext[-\s]?\d+|Extender[-\s]?\d+)\s*$/i, '').trim();
+}
+
+// ---- Get expected pods for a single user ----
+function getExpectedPodsForUser(userName) {
+    const base = fullNameToBase[userName] || extractBaseName(userName);
+    return basePodCount[base] || 0;
+}
+
+// ---- HOOK boot(): Parse user.json for serial-to-base and pod counts ----
+const _origBootCF2 = boot;
+boot = async function() {
+    try {
+        const res = await fetch(USER_METADATA_FILE);
+        const userJson = await res.json();
+
+        userJson.forEach(u => {
+            const fullName = (u.user || '').trim();
+            if (!fullName) return;
+
+            const serial = (u.serial || '').toString().trim().toUpperCase();
+            const base = extractBaseName(fullName);
+
+            fullNameToBase[fullName] = base;
+
+            // Map serial → base household (so CSV rows can be traced back)
+            if (serial) {
+                serialToBase[serial] = base;
+            }
+
+            // Count total pods (Root + Extenders) per household
+            if (!basePodCount[base]) basePodCount[base] = 0;
+            basePodCount[base]++;
+        });
+
+        console.log('[CHART FIX v2] Parsed user.json:');
+        console.log('  serialToBase entries:', Object.keys(serialToBase).length);
+        console.log('  Households:', Object.keys(basePodCount).length);
+        console.table(basePodCount);
+    } catch (e) {
+        console.warn('[CHART FIX v2] Could not parse user.json:', e);
+    }
+
+    await _origBootCF2();
+};
+
+// ---- HOOK computeDayMetrics(): Add expectedPods to each day's result ----
+const _origComputeDay = computeDayMetrics;
+computeDayMetrics = function(rows) {
+    // Call original
+    const result = _origComputeDay(rows);
+
+    // Now scan rows for unique serials → map to base names → active households
+    const activeSerials = new Set();
+    rows.forEach(row => {
+        const sn = (row.ont_serial_no || '').toString().trim().toUpperCase();
+        if (sn) activeSerials.add(sn);
+    });
+
+    // Map serials to base household names
+    const activeHouseholds = new Set();
+    activeSerials.forEach(sn => {
+        const base = serialToBase[sn];
+        if (base) activeHouseholds.add(base);
+    });
+
+    // Sum expected pods ONLY for households active this day
+    let expectedPods = 0;
+    activeHouseholds.forEach(base => {
+        expectedPods += (basePodCount[base] || 0);
+    });
+
+    result.expectedPods = expectedPods;
+    result.activeHouseholds = activeHouseholds.size;
+
+    // Also compute per-user expected pods
+    Object.keys(result.perUser).forEach(userName => {
+        result.perUser[userName].expectedPods = getExpectedPodsForUser(userName);
+    });
+
+    return result;
+};
+
+// ---- POST-HOOK: Fix 3 charts after renderWeeklyInsightsV2 ----
+const _origRenderWkCF2 = renderWeeklyInsightsV2;
+renderWeeklyInsightsV2 = function() {
+    // Call original (renders all 9 charts)
+    _origRenderWkCF2();
+
+    const labels = Object.keys(perDayMetrics);
+    const M = Object.values(perDayMetrics);
+    if (!labels.length) return;
+
+    const selectedUser = document.getElementById('headerUserFilter')?.value ||
+                         document.getElementById('userFilter')?.value || 'ALL';
+
+    // Recompute display metrics if user-filtered
+    let metrics;
+    if (selectedUser !== 'ALL') {
+        metrics = labels.map(label => {
+            const pu = perDayPerUserMetrics[selectedUser] &&
+                       perDayPerUserMetrics[selectedUser][label];
+            if (!pu) return {
+                tot2g:0, tot5g:0, podsOnline:0, podsOffline:0,
+                podsExcellent:0, podsDegraded:0, podsCritical:0, expectedPods:0
+            };
+            return {
+                tot2g: pu.avgTot2g || 0,
+                tot5g: pu.avgTot5g || 0,
+                podsOnline: pu.podsOnline || 0,
+                podsOffline: pu.podsOffline || 0,
+                podsExcellent: pu.podsOnline || 0,
+                podsDegraded: 0,
+                podsCritical: pu.podsOffline || 0,
+                expectedPods: pu.expectedPods || getExpectedPodsForUser(selectedUser)
+            };
+        });
+    } else {
+        metrics = M;
+    }
+
+    // Chart styling
+    const gc = 'rgba(42,50,65,0.4)', tc2 = '#6B7280';
+    const sx = {
+        grid: { color: gc },
+        ticks: { color: '#9CA3AF', font: { size: 10, family: "'Plus Jakarta Sans'" }, maxRotation: 45 }
+    };
+    const sy = {
+        grid: { color: gc },
+        ticks: { color: tc2, font: { size: 10 } },
+        beginAtZero: true
+    };
+    const lg = {
+        position: 'bottom',
+        labels: { color: '#9CA3AF', font: { size: 10, family: "'Plus Jakarta Sans'" }, padding: 10, usePointStyle: true }
+    };
+
+    // Expected pods per day (dynamic — based on active users)
+    const expectedLine = metrics.map(m => m.expectedPods || 0);
+    const maxExpected = Math.max(...expectedLine, 0);
+
+    // ==========================================================
+    // FIX 1: BAND TOT — TWO INDEPENDENT LINES (NOT STACKED)
+    // ==========================================================
+    if (weeklyChartInstances.bandTOT) weeklyChartInstances.bandTOT.destroy();
+
+    weeklyChartInstances.bandTOT = new Chart(document.getElementById('wkChartBandTOT'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: '5 GHz TOT %',
+                    data: metrics.map(m => m.tot5g),
+                    backgroundColor: 'rgba(6,182,212,0.12)',
+                    borderColor: '#06b6d4',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#06b6d4',
+                    pointHoverRadius: 7
+                },
+                {
+                    label: '2.4 GHz TOT %',
+                    data: metrics.map(m => m.tot2g),
+                    backgroundColor: 'rgba(249,115,22,0.12)',
+                    borderColor: '#f97316',
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#f97316',
+                    pointHoverRadius: 7
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: sx,
+                y: {
+                    ...sy,
+                    stacked: false,
+                    max: 100,
+                    title: { display: true, text: 'Avg TOT %', color: tc2, font: { size: 10 } }
+                }
+            },
+            plugins: { legend: lg }
+        }
+    });
+
+    // ==========================================================
+    // FIX 2: POD HEALTH — Online/Offline + Dynamic "Total Expected"
+    // ==========================================================
+    if (weeklyChartInstances.podHealth) weeklyChartInstances.podHealth.destroy();
+
+    const phDatasets = [
+        {
+            label: 'Online',
+            data: metrics.map(m => m.podsOnline),
+            backgroundColor: 'rgba(16,185,129,0.7)',
+            borderColor: '#10b981', borderWidth: 1, borderRadius: 4, order: 2
+        },
+        {
+            label: 'Offline',
+            data: metrics.map(m => m.podsOffline),
+            backgroundColor: 'rgba(239,68,68,0.7)',
+            borderColor: '#ef4444', borderWidth: 1, borderRadius: 4, order: 2
+        }
+    ];
+    if (maxExpected > 0) {
+        phDatasets.push({
+            label: 'Total Expected (' + (selectedUser === 'ALL' ? 'Active Users' : maxExpected) + ')',
+            data: expectedLine,
+            type: 'line',
+            borderColor: '#f59e0b',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            borderDash: [8, 4],
+            pointRadius: 4,
+            pointBackgroundColor: '#f59e0b',
+            pointBorderColor: '#f59e0b',
+            tension: 0,
+            order: 1,
+            fill: false
+        });
+    }
+
+    weeklyChartInstances.podHealth = new Chart(document.getElementById('wkChartPodHealth'), {
+        type: 'bar',
+        data: { labels, datasets: phDatasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: { ...sx, stacked: true },
+                y: {
+                    ...sy, stacked: true,
+                    title: { display: true, text: 'Pods', color: tc2, font: { size: 10 } }
+                }
+            },
+            plugins: { legend: lg }
+        }
+    });
+
+    // ==========================================================
+    // FIX 3: POD UPTIME — Excellent/Degraded/Critical + Expected
+    // ==========================================================
+    if (weeklyChartInstances.uptime) weeklyChartInstances.uptime.destroy();
+
+    const utDatasets = [
+        {
+            label: 'Excellent \u226595%',
+            data: metrics.map(m => m.podsExcellent),
+            backgroundColor: 'rgba(16,185,129,0.7)',
+            borderColor: '#10b981', borderWidth: 1, borderRadius: 4, order: 2
+        },
+        {
+            label: 'Degraded 50-95%',
+            data: metrics.map(m => m.podsDegraded),
+            backgroundColor: 'rgba(245,158,11,0.7)',
+            borderColor: '#f59e0b', borderWidth: 1, borderRadius: 4, order: 2
+        },
+        {
+            label: 'Critical <50%',
+            data: metrics.map(m => m.podsCritical),
+            backgroundColor: 'rgba(239,68,68,0.7)',
+            borderColor: '#ef4444', borderWidth: 1, borderRadius: 4, order: 2
+        }
+    ];
+    if (maxExpected > 0) {
+        utDatasets.push({
+            label: 'Total Expected (' + (selectedUser === 'ALL' ? 'Active Users' : maxExpected) + ')',
+            data: expectedLine,
+            type: 'line',
+            borderColor: '#8b5cf6',
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            borderDash: [8, 4],
+            pointRadius: 4,
+            pointBackgroundColor: '#8b5cf6',
+            pointBorderColor: '#8b5cf6',
+            tension: 0,
+            order: 1,
+            fill: false
+        });
+    }
+
+    weeklyChartInstances.uptime = new Chart(document.getElementById('wkChartUptime'), {
+        type: 'bar',
+        data: { labels, datasets: utDatasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: { ...sx, stacked: true },
+                y: {
+                    ...sy, stacked: true,
+                    title: { display: true, text: 'Pods', color: tc2, font: { size: 10 } }
+                }
+            },
+            plugins: { legend: lg }
+        }
+    });
+
+    console.log('[CHART FIX v2] Rebuilt: Band TOT (unstacked), Pod Health & Uptime (dynamic expected per day)');
+};
+
+// ============================================================
+// END — CHART FIXES PATCH v2
+// ============================================================
+
+
 initTheme();
 boot();
 </script>
