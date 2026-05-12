@@ -2937,15 +2937,15 @@ async function exportRangeReportPNG() {
 
 // ============================================================
 // CHART FIXES PATCH v2 — Band TOT + Pod Health + Pod Uptime
-// Parses extender details from mesh_alpha_users.json
-// Shows "Total Expected" ONLY for users active in that day's data
+// Parses EXTENDER count (excludes Root) from mesh_alpha_users.json
+// Shows "Total Extenders" for users active in that day's data
 // Paste BEFORE initTheme()/boot()
 // ============================================================
 
 // ---- GLOBALS ----
-let serialToBase = {};     // "NKOT0F01CE7E" → "Shashwat Sharma"
-let basePodCount = {};     // "Shashwat Sharma" → 3 (Root + 2 Extenders)
-let fullNameToBase = {};   // "Shashwat Sharma Root" → "Shashwat Sharma"
+let serialToBase = {};       // "NKOT0F01CE7E" → "Shashwat Sharma"
+let baseExtCount = {};       // "Shashwat Sharma" → 2 (ONLY extenders, not Root)
+let fullNameToBase = {};     // "Shashwat Sharma Root" → "Shashwat Sharma"
 
 // ---- Extract base household name ----
 function extractBaseName(fullName) {
@@ -2953,13 +2953,18 @@ function extractBaseName(fullName) {
     return fullName.replace(/\s+(Root|Ext[-\s]?\d+|Extender[-\s]?\d+)\s*$/i, '').trim();
 }
 
-// ---- Get expected pods for a single user ----
-function getExpectedPodsForUser(userName) {
-    const base = fullNameToBase[userName] || extractBaseName(userName);
-    return basePodCount[base] || 0;
+// ---- Check if entry is an extender (not Root) ----
+function isExtenderEntry(fullName) {
+    return /(?:Ext[-\s]?\d+|Extender[-\s]?\d+)\s*$/i.test(fullName);
 }
 
-// ---- HOOK boot(): Parse user.json for serial-to-base and pod counts ----
+// ---- Get expected extender count for a single user ----
+function getExtCountForUser(userName) {
+    const base = fullNameToBase[userName] || extractBaseName(userName);
+    return baseExtCount[base] || 0;
+}
+
+// ---- HOOK boot(): Parse user.json for extender counts ----
 const _origBootCF2 = boot;
 boot = async function() {
     try {
@@ -2975,20 +2980,23 @@ boot = async function() {
 
             fullNameToBase[fullName] = base;
 
-            // Map serial → base household (so CSV rows can be traced back)
             if (serial) {
                 serialToBase[serial] = base;
             }
 
-            // Count total pods (Root + Extenders) per household
-            if (!basePodCount[base]) basePodCount[base] = 0;
-            basePodCount[base]++;
+            // Initialize household if not seen
+            if (!baseExtCount[base]) baseExtCount[base] = 0;
+
+            // ONLY count extenders — skip Root entries
+            if (isExtenderEntry(fullName)) {
+                baseExtCount[base]++;
+            }
         });
 
-        console.log('[CHART FIX v2] Parsed user.json:');
+        console.log('[CHART FIX v2] Extender counts parsed (Root excluded):');
         console.log('  serialToBase entries:', Object.keys(serialToBase).length);
-        console.log('  Households:', Object.keys(basePodCount).length);
-        console.table(basePodCount);
+        console.log('  Households:', Object.keys(baseExtCount).length);
+        console.table(baseExtCount);
     } catch (e) {
         console.warn('[CHART FIX v2] Could not parse user.json:', e);
     }
@@ -2996,38 +3004,36 @@ boot = async function() {
     await _origBootCF2();
 };
 
-// ---- HOOK computeDayMetrics(): Add expectedPods to each day's result ----
+// ---- HOOK computeDayMetrics(): Add expectedExtenders to each day ----
 const _origComputeDay = computeDayMetrics;
 computeDayMetrics = function(rows) {
-    // Call original
     const result = _origComputeDay(rows);
 
-    // Now scan rows for unique serials → map to base names → active households
+    // Scan rows for unique serials → active households
     const activeSerials = new Set();
     rows.forEach(row => {
         const sn = (row.ont_serial_no || '').toString().trim().toUpperCase();
         if (sn) activeSerials.add(sn);
     });
 
-    // Map serials to base household names
     const activeHouseholds = new Set();
     activeSerials.forEach(sn => {
         const base = serialToBase[sn];
         if (base) activeHouseholds.add(base);
     });
 
-    // Sum expected pods ONLY for households active this day
-    let expectedPods = 0;
+    // Sum extender counts ONLY for active households
+    let expectedExtenders = 0;
     activeHouseholds.forEach(base => {
-        expectedPods += (basePodCount[base] || 0);
+        expectedExtenders += (baseExtCount[base] || 0);
     });
 
-    result.expectedPods = expectedPods;
+    result.expectedExtenders = expectedExtenders;
     result.activeHouseholds = activeHouseholds.size;
 
-    // Also compute per-user expected pods
+    // Per-user expected extenders
     Object.keys(result.perUser).forEach(userName => {
-        result.perUser[userName].expectedPods = getExpectedPodsForUser(userName);
+        result.perUser[userName].expectedExtenders = getExtCountForUser(userName);
     });
 
     return result;
@@ -3036,7 +3042,6 @@ computeDayMetrics = function(rows) {
 // ---- POST-HOOK: Fix 3 charts after renderWeeklyInsightsV2 ----
 const _origRenderWkCF2 = renderWeeklyInsightsV2;
 renderWeeklyInsightsV2 = function() {
-    // Call original (renders all 9 charts)
     _origRenderWkCF2();
 
     const labels = Object.keys(perDayMetrics);
@@ -3046,7 +3051,6 @@ renderWeeklyInsightsV2 = function() {
     const selectedUser = document.getElementById('headerUserFilter')?.value ||
                          document.getElementById('userFilter')?.value || 'ALL';
 
-    // Recompute display metrics if user-filtered
     let metrics;
     if (selectedUser !== 'ALL') {
         metrics = labels.map(label => {
@@ -3054,7 +3058,7 @@ renderWeeklyInsightsV2 = function() {
                        perDayPerUserMetrics[selectedUser][label];
             if (!pu) return {
                 tot2g:0, tot5g:0, podsOnline:0, podsOffline:0,
-                podsExcellent:0, podsDegraded:0, podsCritical:0, expectedPods:0
+                podsExcellent:0, podsDegraded:0, podsCritical:0, expectedExtenders:0
             };
             return {
                 tot2g: pu.avgTot2g || 0,
@@ -3064,7 +3068,7 @@ renderWeeklyInsightsV2 = function() {
                 podsExcellent: pu.podsOnline || 0,
                 podsDegraded: 0,
                 podsCritical: pu.podsOffline || 0,
-                expectedPods: pu.expectedPods || getExpectedPodsForUser(selectedUser)
+                expectedExtenders: pu.expectedExtenders || getExtCountForUser(selectedUser)
             };
         });
     } else {
@@ -3087,8 +3091,8 @@ renderWeeklyInsightsV2 = function() {
         labels: { color: '#9CA3AF', font: { size: 10, family: "'Plus Jakarta Sans'" }, padding: 10, usePointStyle: true }
     };
 
-    // Expected pods per day (dynamic — based on active users)
-    const expectedLine = metrics.map(m => m.expectedPods || 0);
+    // Expected extenders per day (dynamic)
+    const expectedLine = metrics.map(m => m.expectedExtenders || 0);
     const maxExpected = Math.max(...expectedLine, 0);
 
     // ==========================================================
@@ -3144,7 +3148,7 @@ renderWeeklyInsightsV2 = function() {
     });
 
     // ==========================================================
-    // FIX 2: POD HEALTH — Online/Offline + Dynamic "Total Expected"
+    // FIX 2: POD HEALTH — Online/Offline + "Total Extenders"
     // ==========================================================
     if (weeklyChartInstances.podHealth) weeklyChartInstances.podHealth.destroy();
 
@@ -3164,7 +3168,7 @@ renderWeeklyInsightsV2 = function() {
     ];
     if (maxExpected > 0) {
         phDatasets.push({
-            label: 'Total Expected (' + (selectedUser === 'ALL' ? 'Active Users' : maxExpected) + ')',
+            label: 'Total Extenders (' + (selectedUser === 'ALL' ? 'Active Users' : maxExpected) + ')',
             data: expectedLine,
             type: 'line',
             borderColor: '#f59e0b',
@@ -3197,7 +3201,7 @@ renderWeeklyInsightsV2 = function() {
     });
 
     // ==========================================================
-    // FIX 3: POD UPTIME — Excellent/Degraded/Critical + Expected
+    // FIX 3: POD UPTIME — Excellent/Degraded/Critical + Extenders
     // ==========================================================
     if (weeklyChartInstances.uptime) weeklyChartInstances.uptime.destroy();
 
@@ -3223,7 +3227,7 @@ renderWeeklyInsightsV2 = function() {
     ];
     if (maxExpected > 0) {
         utDatasets.push({
-            label: 'Total Expected (' + (selectedUser === 'ALL' ? 'Active Users' : maxExpected) + ')',
+            label: 'Total Extenders (' + (selectedUser === 'ALL' ? 'Active Users' : maxExpected) + ')',
             data: expectedLine,
             type: 'line',
             borderColor: '#8b5cf6',
@@ -3255,7 +3259,7 @@ renderWeeklyInsightsV2 = function() {
         }
     });
 
-    console.log('[CHART FIX v2] Rebuilt: Band TOT (unstacked), Pod Health & Uptime (dynamic expected per day)');
+    console.log('[CHART FIX v2] Rebuilt: Band TOT (unstacked), Pod Health & Uptime (extender count, Root excluded)');
 };
 
 // ============================================================
