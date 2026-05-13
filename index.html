@@ -3370,6 +3370,97 @@ console.log('%c\u2728 [AIRTEL MESHALPHA] Master Patch v2.0 loaded','color:#ED1C2
 })();
 
 
+// ============================================================
+// USER FILTER SYNC v2 — Syncs ALL pie chart dropdowns site-wide
+// Works in both DAY and RANGE modes
+// Paste AFTER master_patch_final.js, BEFORE initTheme()/boot()
+// ============================================================
+
+(function() {
+
+    function syncAllDropdowns(headerFilter) {
+        var selVal = headerFilter.value;
+        console.log('[SYNC] Header changed to:', selVal);
+
+        // Find ALL selects on the ENTIRE page
+        var allSelects = document.querySelectorAll('select');
+        var synced = 0;
+
+        allSelects.forEach(function(sel) {
+            // Skip the header filter itself
+            if (sel === headerFilter) return;
+            // Skip date selectors and file selectors
+            if (sel.id === 'dateFrom' || sel.id === 'dateTo') return;
+            if (sel.id === 'fileSelect' || sel.id === 'dayFileSelect') return;
+
+            // Check if this dropdown has the selected user as an option
+            // OR if it has "All Users" option (meaning it's a user filter)
+            var isUserFilter = false;
+            var hasTarget = false;
+
+            for (var i = 0; i < sel.options.length; i++) {
+                var optText = sel.options[i].text || sel.options[i].textContent || '';
+                var optVal = sel.options[i].value;
+                if (optText.indexOf('All Users') >= 0 || optVal === 'ALL') {
+                    isUserFilter = true;
+                }
+                if (optVal === selVal) {
+                    hasTarget = true;
+                }
+            }
+
+            // Only sync if it's a user-filter dropdown and has the target option
+            if (isUserFilter && hasTarget && sel.value !== selVal) {
+                sel.value = selVal;
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                synced++;
+            }
+        });
+
+        console.log('[SYNC] Synced', synced, 'dropdowns to:', selVal);
+    }
+
+    // Attach listener after boot
+    var _prevBoot = boot;
+    boot = async function() {
+        await _prevBoot();
+
+        // Try both possible header filter IDs
+        var headerFilter = document.getElementById('headerUserFilter') ||
+                           document.getElementById('userFilter');
+
+        if (!headerFilter) {
+            // Fallback: find the header dropdown by looking for select in .header
+            var headerEl = document.querySelector('.header, .controls, .header-controls');
+            if (headerEl) {
+                var selects = headerEl.querySelectorAll('select');
+                selects.forEach(function(s) {
+                    for (var i = 0; i < s.options.length; i++) {
+                        if ((s.options[i].text || '').indexOf('All Users') >= 0 ||
+                            s.options[i].value === 'ALL') {
+                            headerFilter = s;
+                            break;
+                        }
+                    }
+                });
+            }
+        }
+
+        if (!headerFilter) {
+            console.warn('[SYNC] Could not find header user filter');
+            return;
+        }
+
+        headerFilter.addEventListener('change', function() {
+            syncAllDropdowns(headerFilter);
+        });
+
+        console.log('[SYNC] User filter sync v2 attached to:', headerFilter.id || 'unnamed');
+    };
+
+})();
+
+
 initTheme();
 boot();
 </script>
