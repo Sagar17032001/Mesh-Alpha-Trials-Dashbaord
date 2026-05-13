@@ -3255,6 +3255,120 @@ console.log('%c\u2728 [AIRTEL MESHALPHA] Master Patch v2.0 loaded','color:#ED1C2
 // END — MASTER PATCH
 // ============================================================
 
+// ============================================================
+// CLIENT CAPABILITY FIX — Correct boolean check for string "True"/"False"
+// Values are: "True", "False", null (NOT boolean true/false)
+// Paste AFTER master_patch_final.js, BEFORE initTheme()/boot()
+// ============================================================
+
+(function() {
+
+    // The values are STRING "True"/"False"/null — must check explicitly
+    function isTruthy(v) {
+        return v === true || v === 1 || v === 'True' || v === 'true' || v === '1' || v === 'Yes' || v === 'yes';
+    }
+
+    var _prevRender = renderWeeklyInsightsV2;
+    renderWeeklyInsightsV2 = function() {
+        _prevRender();
+
+        var labels = Object.keys(perDayMetrics);
+        if (!labels.length) return;
+
+        var el1 = document.getElementById('headerUserFilter');
+        var el2 = document.getElementById('userFilter');
+        var selU = (el1 && el1.value) || (el2 && el2.value) || 'ALL';
+
+        if (selU === 'ALL') return;
+
+        // Get user's household serials
+        var baseName = extractBaseName(selU);
+        var matchSerials = new Set();
+        if (typeof userMap === 'object') {
+            Object.keys(userMap).forEach(function(sn) {
+                var mapped = userMap[sn] || '';
+                if (mapped === selU || extractBaseName(mapped) === baseName) {
+                    matchSerials.add(sn);
+                    matchSerials.add(sn.toUpperCase());
+                }
+            });
+        }
+
+        // Get selected file range
+        var fromIdx = parseInt((document.getElementById('dateFrom') || {}).value || 0);
+        var toIdx = parseInt((document.getElementById('dateTo') || {}).value || 0);
+        var selectedFiles = FILE_LIST.slice(fromIdx, toIdx + 1);
+
+        // Build per-day counts
+        var d6e = [], d6 = [], d5 = [], d4 = [], dLeg = [];
+
+        selectedFiles.forEach(function(f) {
+            var rows = (typeof fileClientData === 'object' ? fileClientData[f] : null) || [];
+            var c6e = 0, c6 = 0, c5 = 0, c4 = 0, cL = 0;
+
+            rows.forEach(function(row) {
+                var sn = (row.ont_serial_no || '').toString().trim();
+                if (!matchSerials.has(sn) && !matchSerials.has(sn.toUpperCase())) return;
+
+                // Classify using isTruthy — handles "True"/"False"/null/boolean/number
+                if (isTruthy(row.supporteht)) {
+                    c6e++;
+                } else if (isTruthy(row.supporthe)) {
+                    c6++;
+                } else if (isTruthy(row.supportvht)) {
+                    c5++;
+                } else if (isTruthy(row.supportht)) {
+                    c4++;
+                } else {
+                    cL++;
+                }
+            });
+
+            d6e.push(c6e); d6.push(c6); d5.push(c5); d4.push(c4); dLeg.push(cL);
+        });
+
+        // Destroy existing chart
+        if (weeklyChartInstances.capability) {
+            weeklyChartInstances.capability.destroy();
+            weeklyChartInstances.capability = null;
+        }
+
+        // Rebuild
+        var gc = 'rgba(42,50,65,0.4)', tc2 = '#6B7280';
+        var sx = {grid:{color:gc},ticks:{color:'#9CA3AF',font:{size:10,family:"'Plus Jakarta Sans'"},maxRotation:45}};
+        var sy = {grid:{color:gc},ticks:{color:tc2,font:{size:10}},beginAtZero:true};
+        var lg = {position:'bottom',labels:{color:'#9CA3AF',font:{size:10,family:"'Plus Jakarta Sans'"},padding:10,usePointStyle:true}};
+
+        weeklyChartInstances.capability = new Chart(document.getElementById('wkChartCapability'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {label:'WiFi 6E', data:d6e, backgroundColor:'rgba(236,72,153,0.7)', borderColor:'#ec4899', borderWidth:1, borderRadius:4},
+                    {label:'WiFi 6',  data:d6,  backgroundColor:'rgba(16,185,129,0.7)', borderColor:'#10b981', borderWidth:1, borderRadius:4},
+                    {label:'WiFi 5',  data:d5,  backgroundColor:'rgba(59,130,246,0.7)', borderColor:'#3b82f6', borderWidth:1, borderRadius:4},
+                    {label:'WiFi 4',  data:d4,  backgroundColor:'rgba(245,158,11,0.7)', borderColor:'#f59e0b', borderWidth:1, borderRadius:4},
+                    {label:'Legacy',  data:dLeg, backgroundColor:'rgba(107,114,128,0.5)', borderColor:'#6b7280', borderWidth:1, borderRadius:4}
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: Object.assign({}, sx, { stacked: true }),
+                    y: Object.assign({}, sy, { stacked: true, title: {display:true, text:'Clients', color:tc2, font:{size:10}} })
+                },
+                plugins: { legend: lg }
+            }
+        });
+
+        var t6e=d6e.reduce(function(a,b){return a+b},0), t6=d6.reduce(function(a,b){return a+b},0),
+            t5=d5.reduce(function(a,b){return a+b},0), t4=d4.reduce(function(a,b){return a+b},0),
+            tL=dLeg.reduce(function(a,b){return a+b},0);
+        console.log('[CC FIX] User:', selU, '| 6E:'+t6e, '6:'+t6, '5:'+t5, '4:'+t4, 'Leg:'+tL, '| Total:', t6e+t6+t5+t4+tL);
+    };
+
+})();
+
 
 initTheme();
 boot();
