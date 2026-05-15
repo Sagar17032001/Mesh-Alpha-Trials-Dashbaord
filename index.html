@@ -42,7 +42,7 @@ body{background:var(--bg);color:var(--text-main);font-family:'Plus Jakarta Sans'
 .chart-filter-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
 .chart-user-dd{background:var(--bg);color:var(--text-main);border:1px solid var(--border);padding:5px 10px;border-radius:6px;font-size:10px;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;max-width:160px}
 .chart-tooltip-icon{color:var(--text-muted);cursor:help;font-size:12px;position:relative}
-.chart-tooltip-icon .tooltip-text{visibility:hidden;background:var(--card);color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;font-weight:500;line-height:1.5;position:absolute;z-index:100;width:320px;left:50%;transform:translateX(-50%);bottom:130%;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none}
+.chart-tooltip-icon .tooltip-text{visibility:hidden;background:var(--card);color:var(--text-dim);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:11px;font-weight:500;line-height:1.5;position:absolute;z-index:10002;width:320px;left:50%;transform:translateX(-50%);bottom:130%;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none}
 .chart-tooltip-icon:hover .tooltip-text{visibility:visible}
 .info-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:25px;display:flex;flex-direction:column;gap:12px;min-height:150px}
 .info-badge{background:var(--warning-bg);color:var(--warning);padding:6px 14px;border-radius:8px;font-size:11px;font-weight:700;display:inline-block;width:fit-content}
@@ -204,6 +204,35 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 .fleet-stats{grid-template-columns:repeat(2,1fr)}
 .header{padding:1rem}.container{padding:15px}
 }
+
+.stat-def{display:block;font-size:8.5px;color:var(--text-dim);margin-top:4px;line-height:1.3;font-weight:500;opacity:0.85;}
+.stat-box:hover{transform:translateY(-2px);cursor:help;}
+.chart-customizer{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-bottom:16px;}
+.chart-customizer summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--accent);display:flex;align-items:center;gap:8px;user-select:none;}
+.chart-customizer summary::-webkit-details-marker{display:none;}
+.customizer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px;margin-top:12px;}
+.customizer-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-size:11.5px;font-weight:600;color:var(--text);}
+.customizer-item:hover{border-color:var(--accent);}
+.customizer-item input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer;}
+.customizer-item .ci-icon{font-size:13px;color:var(--accent);width:18px;text-align:center;}
+.customizer-item .ci-desc{font-size:8px;color:var(--text-dim);font-weight:500;display:block;margin-top:1px;}
+.customizer-actions{margin-top:10px;display:flex;gap:8px;}
+.customizer-actions button{padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:10px;font-weight:700;cursor:pointer;}
+.customizer-actions button:hover{border-color:var(--accent);color:var(--accent);}
+
+.impact-card{position:relative;overflow:visible}
+.impact-card>.chart-tooltip-icon{position:absolute!important;top:10px;right:10px;z-index:10002}
+.impact-card>.chart-tooltip-icon .tooltip-text{bottom:auto!important;top:130%!important;left:auto!important;right:0!important;transform:none!important}
+.stat-box .chart-tooltip-icon .tooltip-text{bottom:auto!important;top:130%!important}
+.chart-tooltip-icon{position:relative;z-index:10002}
+.chart-tooltip-icon:hover{z-index:10003}
+.health-score-bar{height:4px;border-radius:2px;background:var(--border);overflow:hidden;margin-top:6px;width:100%}
+.health-score-fill{height:100%;border-radius:2px;transition:width 0.5s}
+.health-score-num{font-size:22px;font-weight:900}
+.hs-formula{font-size:9px;color:var(--text-dim);margin-top:3px;background:var(--bg);padding:8px 10px;border-radius:6px;border:1px solid var(--border);overflow-x:auto}
+.ext-topology{font-size:10px;color:var(--text-dim);margin-top:4px;display:flex;gap:10px;flex-wrap:wrap}
+.ext-topology span{display:inline-flex;align-items:center;gap:3px}
+.issue-tag.ch{background:rgba(6,182,212,0.12);color:#06b6d4;border:1px solid rgba(6,182,212,0.3)}
 </style>
 </head>
 <body>
@@ -247,21 +276,25 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 <!-- IMPACT SUMMARY -->
 <div class="impact-summary">
 <div class="impact-card crit">
+<span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Coverage Deficit</b><br>Clients on nodes where signal &lt; -80dBm floor samples exceed 15% of total. Indicates AP placement or range issues.</span></span>
 <div class="impact-title">Coverage Deficit</div>
 <div class="impact-value" id="impact-cov">0</div>
 <div class="impact-desc">Affected clients on nodes where &lt; -80dBm floor samples exceed 15% threshold.</div>
 </div>
 <div class="impact-card warn">
+<span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Throughput Bottleneck</b><br>Clients where Tx link &lt; 65Mbps for &gt; 50% samples. Caused by interference, distance, or legacy devices.</span></span>
 <div class="impact-title">Throughput Bottleneck</div>
 <div class="impact-value" id="impact-mcs">0</div>
 <div class="impact-desc">Clients experiencing Tx link speed constraints (&lt; 65Mbps) for &gt; 50% session.</div>
 </div>
 <div class="impact-card crit">
+<span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Roaming Stability Breach</b><br>Dissociation events &gt; 20. Proxy for 802.11r/k/v roaming failures or client flapping.</span></span>
 <div class="impact-title">Roaming Stability Breach</div>
 <div class="impact-value" id="impact-mob">0</div>
 <div class="impact-desc">High volume disconnections or client flapping detected in latest window.</div>
 </div>
 <div class="impact-card">
+<span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Band Sticky Trap</b><br>VHT/HE/EHT on 2.4G (&lt; -56dBm) or HT on 5G (&gt; -80dBm). Band steering policy failure.</span></span>
 <div class="impact-title">Band Sticky Trap</div>
 <div class="impact-value" id="impact-sticky">0</div>
 <div class="impact-desc">Clients remaining on 5G with poor local SNR instead of steering to 2.4G.</div>
@@ -270,11 +303,11 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 
 <!-- FLEET STATS -->
 <div class="fleet-stats">
-<div class="stat-box"><span class="stat-value" id="stat-total-clients">0</span><span class="stat-label">Unique Clients</span></div>
-<div class="stat-box"><span class="stat-value" id="stat-disc-count" style="color:var(--danger)">0</span><span class="stat-label">Fleet Disconnects</span></div>
-<div class="stat-box"><span class="stat-value" id="stat-sticky-total">0</span><span class="stat-label">Sticky Events</span></div>
-<div class="stat-box"><span class="stat-value" id="stat-mcs-avg" style="color:var(--success)">0%</span><span class="stat-label">Fleet Efficiency</span></div>
-<div class="stat-box"><span class="stat-value" id="stat-breach-density" style="color:var(--warning)">0</span><span class="stat-label">Node Breaches</span></div>
+<div class="stat-box" title="Unique MAC addresses. Each device counted once."><span class="stat-value" id="stat-total-clients">0</span><span class="stat-label">Unique Clients<span class="chart-tooltip-icon" style="margin-left:4px"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Unique Clients</b><br>Distinct device MACs across all APs.</span></span></span><span class="stat-def">Distinct device MACs across all APs</span></div>
+<div class="stat-box" title="Total dissociation events. >20=flagged. High=roaming instability."><span class="stat-value" id="stat-disc-count" style="color:var(--danger)">0</span><span class="stat-label">Fleet Disconnects<span class="chart-tooltip-icon" style="margin-left:4px"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Fleet Disconnects</b><br>Sum of dissociation events (&gt;20 flagged).</span></span></span><span class="stat-def">Sum of dissociation events (&gt;20=flagged)</span></div>
+<div class="stat-box" title="Band-steering failures. Clients stuck on wrong band."><span class="stat-value" id="stat-sticky-total">0</span><span class="stat-label">Sticky Events<span class="chart-tooltip-icon" style="margin-left:4px"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Sticky Events</b><br>Band steering failures (wrong band).</span></span></span><span class="stat-def">Band steering failures (wrong band)</span></div>
+<div class="stat-box" title="100% minus avg poor MCS. Tx<65Mbps for >50% samples. Target>80%."><span class="stat-value" id="stat-mcs-avg" style="color:var(--success)">0%</span><span class="stat-label">Fleet Efficiency<span class="chart-tooltip-icon" style="margin-left:4px"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Fleet Efficiency</b><br>100% minus avg poor MCS rate. Target &gt; 80%.</span></span></span><span class="stat-def">100% minus avg poor MCS rate</span></div>
+<div class="stat-box" title="Pods with any KPI breach (coverage/SNR/MCS/uptime/interference)."><span class="stat-value" id="stat-breach-density" style="color:var(--warning)">0</span><span class="stat-label">Node Breaches<span class="chart-tooltip-icon" style="margin-left:4px"><i class="fas fa-info-circle"></i><span class="tooltip-text"><b>Node Breaches</b><br>Pods with any KPI threshold breach.</span></span></span><span class="stat-def">Pods with any KPI threshold breach</span></div>
 </div>
 
 <!-- ========== ENHANCED WEEKLY INSIGHTS v2.0 ========== -->
@@ -328,6 +361,7 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 <div class="chart-title"><i class="fas fa-heartbeat"></i> Pod Uptime Distribution Over Time</div>
 <div class="chart-canvas-wrap"><canvas id="wkChartUptime"></canvas></div>
 </div>
+<div class="weekly-chart-card"><div class="chart-title"><i class="fas fa-broadcast-tower"></i> Channel Health Over Time</div><div class="chart-canvas-wrap"><canvas id="wkChartChannelHealth"></canvas></div></div>
 </div>
 
 <!-- LLM Summary Insights Panel (generated by JS) -->
@@ -341,6 +375,10 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 
 <!-- CHARTS SECTION: Cumulative Fleet Analytics -->
 <div class="charts-heading"><i class="fas fa-chart-pie" style="color:var(--accent);"></i> Cumulative Fleet Analytics</div>
+<details class="chart-customizer"><summary><i class="fas fa-sliders-h"></i> Customize Dashboard Charts</summary>
+<div class="customizer-grid"><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartBandTOT"><span class="ci-icon"><i class="fas fa-broadcast-tower"></i></span><span class="ci-label">Band Distribution<span class="ci-desc">TOT 2.4G vs 5G</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartCapability"><span class="ci-icon"><i class="fas fa-wifi"></i></span><span class="ci-label">Client Capability<span class="ci-desc">WiFi standard per client</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartPodHealth"><span class="ci-icon"><i class="fas fa-heartbeat"></i></span><span class="ci-label">Pod Health<span class="ci-desc">Online vs Offline</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartCoverage"><span class="ci-icon"><i class="fas fa-signal"></i></span><span class="ci-label">Poor Coverage<span class="ci-desc">Below -80 dBm</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartSNR"><span class="ci-icon"><i class="fas fa-chart-area"></i></span><span class="ci-label">Poor SNR<span class="ci-desc">SNR below 10 dB</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartMCS"><span class="ci-icon"><i class="fas fa-tachometer-alt"></i></span><span class="ci-label">Poor MCS<span class="ci-desc">Tx below 65 Mbps</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartSticky"><span class="ci-icon"><i class="fas fa-magnet"></i></span><span class="ci-label">Sticky Clients<span class="ci-desc">Band steering failures</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartDisconnect"><span class="ci-icon"><i class="fas fa-unlink"></i></span><span class="ci-label">Disconnections<span class="ci-desc">Dissociation severity</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartUptime"><span class="ci-icon"><i class="fas fa-clock"></i></span><span class="ci-label">Pod Uptime<span class="ci-desc">Excellent/Degraded/Critical</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartChannelHealth"><span class="ci-icon"><i class="fas fa-broadcast-tower"></i></span><span class="ci-label">Channel Health<span class="ci-desc">Util+OBSS+Interference</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartRoaming"><span class="ci-icon"><i class="fas fa-random"></i></span><span class="ci-label">Roaming History<span class="ci-desc">Disconnect proxy</span></span></label><label class="customizer-item"><input type=checkbox checked data-chart-toggle="chartCapTimeline"><span class="ci-icon"><i class="fas fa-history"></i></span><span class="ci-label">Cap Timeline<span class="ci-desc">WiFi cap trend over time</span></span></label></div>
+<div class="customizer-actions"><button onclick="toggleAllCharts(true)"><i class="fas fa-check-double"></i> Show All</button><button onclick="toggleAllCharts(false)"><i class="fas fa-eye-slash"></i> Hide All</button></div></details>
+
 
 <!-- Row 1: Doughnuts -->
 <div class="charts-section">
@@ -348,7 +386,7 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 <div class="chart-filter-row">
 <div class="chart-title" style="margin-bottom:0"><i class="fas fa-broadcast-tower"></i> Band Distribution (TOT)
 <span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i>
-<span class="tooltip-text"><b>ap_with_poor_tot_on_5G:</b> Total usage on 5G / (total usage on 5G + 2G). Shows the band split across all clients.</span>
+<span class="tooltip-text"><b>ap_with_poor_tot_on_5G:</b> 5G/(5G+2G) per client, fleet-averaged. Target >60% on 5G. High 2.4G = band steering failure.</span>
 </span></div>
 <select class="chart-user-dd" id="ddBandTOT" onchange="renderChartBandTOT()"></select>
 </div>
@@ -368,7 +406,7 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 <div class="chart-filter-row">
 <div class="chart-title" style="margin-bottom:0"><i class="fas fa-server"></i> Pod Health Status
 <span class="chart-tooltip-icon"><i class="fas fa-info-circle"></i>
-<span class="tooltip-text"><b>ap_downtime_per:</b> AP downtime percentage. Pods with >50% downtime are classified as Offline.</span>
+<span class="tooltip-text"><b>ap_downtime_per:</b> Downtime = alarm/24h. >50% = Offline. Offline pods = coverage gaps, clients forced to distant nodes.</span>
 </span></div>
 <select class="chart-user-dd" id="ddPodHealth" onchange="renderChartPodHealth()"></select>
 </div>
@@ -444,6 +482,7 @@ body.light-theme .insight-next-steps{background:#F1F5F9}
 </div>
 </div>
 
+<div class="charts-section" style="grid-template-columns:1fr"><div class="chart-card"><div class="chart-filter-row"><div class="chart-title" style="margin-bottom:0"><i class="fas fa-broadcast-tower"></i> Channel Health Analytics</div><select class="chart-user-dd" id="ddChannelHealth" onchange="renderChartChannelHealth()"></select></div><div class="chart-canvas-wrap"><canvas id="chartChannelHealth"></canvas></div></div></div>
 <!-- Row 4: Info Cards -->
 <div class="charts-section">
 <div class="info-card">
@@ -1311,6 +1350,48 @@ function renderChartCapTimeline(){
     });
     chartInstances.capTimeline=new Chart(document.getElementById('chartCapTimeline'),{type:'bar',data:{labels,datasets},options:{...CHART_DEFAULTS,scales:{x:{stacked:true,grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#9CA3AF',font:{size:11,family:"'Plus Jakarta Sans'"}}},y:{stacked:true,grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#6B7280',font:{size:10}},beginAtZero:true,title:{display:true,text:'Unique Clients',color:'#6B7280',font:{size:11}}}}}});
 }
+
+
+// ====== CHART VISIBILITY TOGGLE ======
+function getChartCard(cid){
+    var el=document.getElementById(cid);if(!el)return null;
+    var n=el;for(var i=0;i<10;i++){n=n.parentElement;if(!n)return null;
+    if(n.classList&&(n.classList.contains('chart-card')||n.classList.contains('info-card')||n.classList.contains('cap-timeline-card')))return n;}
+    return null;
+}
+function applyChartVis(){
+    document.querySelectorAll('[data-chart-toggle]').forEach(function(cb){
+        var c=getChartCard(cb.getAttribute('data-chart-toggle'));
+        if(c)c.style.display=cb.checked?'':'none';
+    });
+    var p={};
+    document.querySelectorAll('[data-chart-toggle]').forEach(function(cb){
+        p[cb.getAttribute('data-chart-toggle')]=cb.checked;
+    });
+    try{localStorage.setItem('meshDashChartPrefs',JSON.stringify(p));}catch(e){}
+}
+function loadChartPrefs(){
+    try{
+        var s=JSON.parse(localStorage.getItem('meshDashChartPrefs'));if(!s)return;
+        document.querySelectorAll('[data-chart-toggle]').forEach(function(cb){
+            var k=cb.getAttribute('data-chart-toggle');
+            if(s.hasOwnProperty(k))cb.checked=s[k];
+        });
+        applyChartVis();
+    }catch(e){}
+}
+function toggleAllCharts(show){
+    document.querySelectorAll('[data-chart-toggle]').forEach(function(cb){cb.checked=show;});
+    applyChartVis();
+}
+document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(function(){
+        document.querySelectorAll('[data-chart-toggle]').forEach(function(cb){
+            cb.addEventListener('change',applyChartVis);
+        });
+        loadChartPrefs();
+    },500);
+});
 
 // ==================== FLEET RENDERING ====================
 function renderFleet(query){
@@ -3461,6 +3542,18 @@ console.log('%c\u2728 [AIRTEL MESHALPHA] Master Patch v2.0 loaded','color:#ED1C2
 })();
 
 
+
+// ===== PRD FINAL PATCH: Channel Health, Health Score Table, Remove Unassigned, Legacy Capability =====
+function renderChartChannelHealth(){if(chartInstances.channelHealth)chartInstances.channelHealth.destroy();var pods=getFilteredPods('ddChannelHealth');var pm={};pods.forEach(function(r){pm[r.mac_address||'P']=r;});var u2=0,u5=0,o2=0,o5=0,i2=0,i5=0,n=0;Object.values(pm).forEach(function(r){u2+=clean(r.ap_with_high_channel_utilisation_2_pct);u5+=clean(r.ap_with_high_channel_congestion_5_pct);o2+=clean(r.channelobss2_4);o5+=clean(r.channelobss5);i2+=clean(r.ap_with_high_interference_2);i5+=clean(r.ap_with_high_interference_5);n++;});chartInstances.channelHealth=new Chart(document.getElementById('chartChannelHealth'),{type:'bar',data:{labels:['Util 2.4G','Util 5G','OBSS 2.4G','OBSS 5G','Interf 2.4G','Interf 5G'],datasets:[{label:'Avg %',data:[n?(u2/n).toFixed(1):0,n?(u5/n).toFixed(1):0,n?(o2/n).toFixed(1):0,n?(o5/n).toFixed(1):0,n?(i2/n).toFixed(1):0,n?(i5/n).toFixed(1):0],backgroundColor:['rgba(249,115,22,0.6)','rgba(6,182,212,0.6)','rgba(245,158,11,0.6)','rgba(139,92,246,0.6)','rgba(239,68,68,0.6)','rgba(236,72,153,0.6)'],borderColor:['#f97316','#06b6d4','#f59e0b','#8b5cf6','#ef4444','#ec4899'],borderWidth:2,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#9CA3AF',font:{size:9}}},y:{grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#6B7280',font:{size:9}},beginAtZero:true,max:100}},plugins:{legend:{display:false}}}});}
+var _xRA=renderAllCharts;renderAllCharts=function(){_xRA();renderChartChannelHealth();};
+var _xPCD=populateChartDropdowns;populateChartDropdowns=function(){_xPCD();var dd=document.getElementById('ddChannelHealth');if(dd){dd.innerHTML='<option value="ALL">All Users</option>';allUserList.filter(function(u){return u.indexOf("Unassigned")!==0;}).forEach(function(u){var o=document.createElement("option");o.value=u;o.textContent=truncLabel(u,25);dd.appendChild(o);});}['ddBandTOT','ddCapability','ddPodHealth','ddCoverage','ddSNR','ddMCS','ddSticky','ddDisconnect','ddUptime','ddCapTimeline'].forEach(function(id){var s=document.getElementById(id);if(!s)return;var rm=[];for(var i=0;i<s.options.length;i++){if(s.options[i].value.indexOf('Unassigned')===0)rm.push(s.options[i]);}rm.forEach(function(o){o.remove();});});};
+var _xPUF=populateUserFilter;populateUserFilter=function(){_xPUF();['userFilter','headerUserFilter'].forEach(function(id){var s=document.getElementById(id);if(!s)return;var rm=[];for(var i=0;i<s.options.length;i++){if(s.options[i].value.indexOf('Unassigned')===0)rm.push(s.options[i]);}rm.forEach(function(o){o.remove();});});};
+var _xCDM=computeDayMetrics;computeDayMetrics=function(rows){var r=_xCDM(rows);var u2=0,u5=0,o2=0,o5=0,i2=0,i5=0,pc=0;rows.forEach(function(row){if(!isPodRow(row))return;u2+=clean(row.ap_with_high_channel_utilisation_2_pct);u5+=clean(row.ap_with_high_channel_congestion_5_pct);o2+=clean(row.channelobss2_4);o5+=clean(row.channelobss5);i2+=clean(row.ap_with_high_interference_2);i5+=clean(row.ap_with_high_interference_5);pc++;});r.avgChanUtil2=pc?(u2/pc):0;r.avgChanUtil5=pc?(u5/pc):0;r.avgOBSS2=pc?(o2/pc):0;r.avgOBSS5=pc?(o5/pc):0;r.avgInterf2=pc?(i2/pc):0;r.avgInterf5=pc?(i5/pc):0;return r;};
+var _xDUI=detectUserIssues;detectUserIssues=function(userName){if(userName.indexOf('Unassigned')===0)return{severity:'stable',issues:[],observations:[],nextSteps:[],trend:'stable',vendor:'Unknown',daysFlagged:0,healthScore:0,extCount:0,avgOnlinePods:0};var r=_xDUI(userName);var dd=perDayPerUserMetrics[userName];if(!dd){r.healthScore=r.issues.length===0?100:Math.max(0,100-r.issues.length*15);r.extCount=getExtCountForUser(userName);r.avgOnlinePods=0;return r;}var vals=Object.values(dd),td=vals.length;var covD=0,mcsD=0,discD=0,stkD=0,podD=0,bndD=0;vals.forEach(function(v){if(v.covIssue)covD++;if(v.mcsIssue)mcsD++;if(v.discIssue)discD++;if(v.stickyIssue)stkD++;if(v.podIssue)podD++;if(v.bandIssue)bndD++;});r.extCount=getExtCountForUser(userName);var onP=0;vals.forEach(function(v){onP+=v.podsOnline||0;});r.avgOnlinePods=td>0?parseFloat((onP/td).toFixed(1)):0;var sc=100;if(td>0){sc-=(covD/td)*20;sc-=(mcsD/td)*20;sc-=(discD/td)*20;sc-=(stkD/td)*15;sc-=(podD/td)*15;sc-=(bndD/td)*10;}if(r.trend==='degrading')sc-=5;r.healthScore=Math.max(0,Math.round(sc));r._covD=covD;r._mcsD=mcsD;r._discD=discD;r._stkD=stkD;r._podD=podD;r._bndD=bndD;r._td=td;r.vendor=getVendorForUser(userName);return r;};
+var _xGUI=generateUserInsights;generateUserInsights=function(){var grid=document.getElementById('insightGrid');if(!grid)return;var el1=document.getElementById('headerUserFilter'),el2=document.getElementById('userFilter');var su=(el1&&el1.value)||(el2&&el2.value)||'ALL';var au=su!=='ALL'?[su].filter(function(u){return perDayPerUserMetrics[u]}):Object.keys(perDayPerUserMetrics).sort();au=au.filter(function(u){return u.indexOf('Unassigned')!==0;});if(!au.length){grid.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted)">No data.</div>';return;}var sm={critical:'needs-attention',warning:'monitor',stable:'healthy'};var sl2={critical:'Needs Attention',warning:'Monitor',stable:'Healthy'};var si2={critical:'fa-exclamation-triangle',warning:'fa-eye',stable:'fa-check-circle'};var tl2={improving:'<span class="trend-arrow improving"><i class="fas fa-chart-line"></i> Improving</span>',degrading:'<span class="trend-arrow degrading"><i class="fas fa-chart-line"></i> Declining</span>',stable:'<span class="trend-arrow stable-trend"><i class="fas fa-minus"></i> Steady</span>'};var tagL={cov:'Coverage',mcs:'Link Speed',disc:'Connectivity',sticky:'Band Steering',pod:'Pod Health',band:'Band Usage'};var htm='';au.forEach(function(user){var a=detectUserIssues(user);var sev=sm[a.severity]||'healthy';var hs=a.healthScore||0;var hc=hs>=80?'var(--success)':hs>=50?'var(--warning)':'var(--danger)';var obs=a.observations.map(function(o){return '<li>'+o+'</li>';}).join('');var stp=a.nextSteps.map(function(s){return '<li>'+s+'</li>';}).join('');var tags=a.issues.map(function(i){return '<span class="issue-tag '+(i||'')+'">'+((tagL[i])||i)+'</span>';}).join('');var topo='';if(a.extCount>0||a.avgOnlinePods>0){topo='<div class="ext-topology"><span><i class="fas fa-server" style="color:var(--accent)"></i> '+a.extCount+' ext</span><span><i class="fas fa-check-circle" style="color:var(--success)"></i> ~'+a.avgOnlinePods+' online/day</span><span><i class="fas fa-microchip" style="color:var(--text-muted)"></i> '+(a.vendor||'Unknown')+'</span></div>';}var formula='';if(a._td&&a._td>0){var fRows=[];var totalPen=0;[{n:'Coverage',d:a._covD,w:20},{n:'Link Speed',d:a._mcsD,w:20},{n:'Disconnections',d:a._discD,w:20},{n:'Sticky Clients',d:a._stkD,w:15},{n:'Pod Health',d:a._podD,w:15},{n:'Band Usage',d:a._bndD,w:10}].forEach(function(fi){if(fi.d>0){var pen=parseFloat(((fi.d/a._td)*fi.w).toFixed(1));totalPen+=pen;fRows.push('<tr><td style="text-align:left;padding:3px 6px;color:var(--text-dim)">'+fi.n+'</td><td style="padding:3px 6px;text-align:center;color:var(--warning)">'+fi.d+' / '+a._td+' days</td><td style="padding:3px 6px;text-align:center;color:var(--text-muted)">\u00d7 '+fi.w+'</td><td style="padding:3px 6px;text-align:right;color:var(--danger);font-weight:700">\u2212'+pen.toFixed(1)+'</td></tr>');}});if(a.trend==='degrading'){totalPen+=5;fRows.push('<tr><td style="text-align:left;padding:3px 6px;color:var(--text-dim)">Trend</td><td colspan="2" style="padding:3px 6px;text-align:center;color:var(--text-muted)">Declining</td><td style="padding:3px 6px;text-align:right;color:var(--danger);font-weight:700">\u22125.0</td></tr>');}if(fRows.length>0){formula='<div class="hs-formula"><div style="font-size:8px;color:var(--text-muted);margin-bottom:4px;font-weight:700">HEALTH SCORE BREAKDOWN</div><table style="width:100%;border-collapse:collapse;font-size:9.5px;font-family:monospace"><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:3px 6px;color:var(--accent);font-size:8px">FACTOR</th><th style="padding:3px 6px;text-align:center;color:var(--accent);font-size:8px">DAYS FLAGGED</th><th style="padding:3px 6px;text-align:center;color:var(--accent);font-size:8px">WEIGHT</th><th style="padding:3px 6px;text-align:right;color:var(--accent);font-size:8px">PENALTY</th></tr>'+fRows.join('')+'<tr style="border-top:1px solid var(--border);font-weight:800"><td colspan="3" style="text-align:right;padding:4px 6px;color:var(--text-main);font-size:10px">100 \u2212 '+totalPen.toFixed(1)+' =</td><td style="text-align:right;padding:4px 6px;color:'+hc+';font-size:13px;font-weight:900">'+hs+'</td></tr></table></div>';}}var scoreHtml='<div style="display:flex;align-items:center;gap:10px;margin-top:8px"><span class="health-score-num" style="color:'+hc+'">'+hs+'</span><div style="flex:1"><div style="font-size:9px;color:var(--text-muted);font-weight:700;margin-bottom:3px">HEALTH SCORE</div><div class="health-score-bar"><div class="health-score-fill" style="width:'+hs+'%;background:'+hc+'"></div></div>'+formula+'</div></div>';htm+='<div class="insight-card sev-'+sev+'"><div class="insight-header"><div><div class="insight-user">'+user+'</div><div class="insight-vendor">'+(a.vendor||'Unknown')+' '+(tl2[a.trend]||tl2.stable)+'</div>'+topo+'</div><span class="severity-badge '+sev+'"><i class="fas '+(si2[a.severity]||'fa-check-circle')+'"></i> '+(sl2[a.severity]||'Healthy')+'</span></div>'+scoreHtml+'<div class="insight-observations"><div class="insight-section-label"><i class="fas fa-search-plus" style="margin-right:4px"></i> Observations</div><ul>'+obs+'</ul></div><div class="insight-next-steps"><div class="insight-section-label"><i class="fas fa-lightbulb" style="margin-right:4px"></i> Suggestions</div><ul>'+stp+'</ul></div>'+(tags?'<div class="issue-tags">'+tags+'</div>':'')+'</div>';});grid.innerHTML=htm;try{enableReportButtons();}catch(e){}};
+var _xGES=generateExecutiveSummary;generateExecutiveSummary=function(){var bk=perDayPerUserMetrics;var f={};Object.keys(bk).forEach(function(u){if(u.indexOf('Unassigned')!==0)f[u]=bk[u];});perDayPerUserMetrics=f;_xGES();perDayPerUserMetrics=bk;};
+var _xRWI=renderWeeklyInsightsV2;renderWeeklyInsightsV2=function(){_xRWI();var labels=Object.keys(perDayMetrics);var M=Object.values(perDayMetrics);if(!labels.length)return;if(weeklyChartInstances.channelHealth)weeklyChartInstances.channelHealth.destroy();var cel=document.getElementById('wkChartChannelHealth');if(!cel)return;weeklyChartInstances.channelHealth=new Chart(cel,{type:'line',data:{labels:labels,datasets:[{label:'Util 2.4G',data:M.map(function(m){return(m.avgChanUtil2||0).toFixed(1)}),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:true,tension:0.35,pointRadius:4,borderWidth:2},{label:'Util 5G',data:M.map(function(m){return(m.avgChanUtil5||0).toFixed(1)}),borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,0.08)',fill:true,tension:0.35,pointRadius:4,borderWidth:2},{label:'Interf 2.4G',data:M.map(function(m){return(m.avgInterf2||0).toFixed(1)}),borderColor:'#ef4444',fill:false,tension:0.35,pointRadius:3,borderWidth:1.5,borderDash:[5,5]},{label:'Interf 5G',data:M.map(function(m){return(m.avgInterf5||0).toFixed(1)}),borderColor:'#ec4899',fill:false,tension:0.35,pointRadius:3,borderWidth:1.5,borderDash:[5,5]}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#9CA3AF',font:{size:10},maxRotation:45}},y:{grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#6B7280',font:{size:10}},beginAtZero:true}},plugins:{legend:{position:'bottom',labels:{color:'#9CA3AF',font:{size:10},padding:10,usePointStyle:true}}}}});};
+// ===== END PRD PATCH =====
 initTheme();
 boot();
 </script>
