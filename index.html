@@ -3556,8 +3556,514 @@ var _xGUI=generateUserInsights;generateUserInsights=function(){var grid=document
 var _xGES=generateExecutiveSummary;generateExecutiveSummary=function(){var bk=perDayPerUserMetrics;var f={};Object.keys(bk).forEach(function(u){if(u.indexOf('Unassigned')!==0)f[u]=bk[u];});perDayPerUserMetrics=f;_xGES();perDayPerUserMetrics=bk;};
 var _xRWI=renderWeeklyInsightsV2;renderWeeklyInsightsV2=function(){_xRWI();var labels=Object.keys(perDayMetrics);var M=Object.values(perDayMetrics);if(!labels.length)return;if(weeklyChartInstances.channelHealth)weeklyChartInstances.channelHealth.destroy();var cel=document.getElementById('wkChartChannelHealth');if(!cel)return;weeklyChartInstances.channelHealth=new Chart(cel,{type:'line',data:{labels:labels,datasets:[{label:'Util 2.4G',data:M.map(function(m){return(m.avgChanUtil2||0).toFixed(1)}),borderColor:'#f97316',backgroundColor:'rgba(249,115,22,0.08)',fill:true,tension:0.35,pointRadius:4,borderWidth:2},{label:'Util 5G',data:M.map(function(m){return(m.avgChanUtil5||0).toFixed(1)}),borderColor:'#06b6d4',backgroundColor:'rgba(6,182,212,0.08)',fill:true,tension:0.35,pointRadius:4,borderWidth:2},{label:'Interf 2.4G',data:M.map(function(m){return(m.avgInterf2||0).toFixed(1)}),borderColor:'#ef4444',fill:false,tension:0.35,pointRadius:3,borderWidth:1.5,borderDash:[5,5]},{label:'Interf 5G',data:M.map(function(m){return(m.avgInterf5||0).toFixed(1)}),borderColor:'#ec4899',fill:false,tension:0.35,pointRadius:3,borderWidth:1.5,borderDash:[5,5]}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#9CA3AF',font:{size:10},maxRotation:45}},y:{grid:{color:'rgba(42,50,65,0.4)'},ticks:{color:'#6B7280',font:{size:10}},beginAtZero:true}},plugins:{legend:{position:'bottom',labels:{color:'#9CA3AF',font:{size:10},padding:10,usePointStyle:true}}}}});};
 // ===== END PRD PATCH =====
-initTheme();
-boot();
+// ============================================================
+// AIRTEL MESHALPHA — LOGIN PAGE PATCH (No Backend) — FIXED v2
+// ============================================================
+// HOW TO USE:
+//   1. Open index_1.html
+//   2. Find and DELETE these 2 lines at the very bottom of <script>:
+//        initTheme();
+//        boot();
+//   3. PASTE this entire file in their place
+//   4. Save & refresh. Done!
+// ============================================================
+
+// ---- GLOBAL: Track if dashboard already booted ----
+let meshDashboardBooted = false;
+
+// ---- 1. LOGIN CSS ----
+(function injectLoginCSS() {
+  const s = document.createElement('style');
+  s.id = 'loginPageCSS';
+  s.textContent = `
+    /* ===== LOGIN OVERLAY ===== */
+    .login-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg, #0B0E14);
+      z-index: 99999;
+      display: flex; justify-content: center; align-items: center;
+      flex-direction: column;
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .login-overlay.hidden {
+      opacity: 0; pointer-events: none; transform: scale(1.02);
+    }
+    .login-overlay::before {
+      content: '';
+      position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+      background: linear-gradient(90deg, #ED1C24, #FF4D54, #ED1C24, #FF6B6B, #ED1C24);
+      background-size: 300% 100%;
+      animation: loginStripe 4s ease infinite;
+    }
+    @keyframes loginStripe {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    /* Animated background mesh pattern */
+    .login-bg-mesh {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      overflow: hidden; pointer-events: none;
+    }
+    .login-bg-mesh .mesh-node {
+      position: absolute;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(237, 28, 36, 0.15);
+      animation: meshFloat 8s ease-in-out infinite;
+    }
+    .login-bg-mesh .mesh-node:nth-child(2) { background: rgba(59,130,246,0.12); animation-delay: 1s; animation-duration: 10s; }
+    .login-bg-mesh .mesh-node:nth-child(3) { background: rgba(139,92,246,0.1); animation-delay: 2s; animation-duration: 12s; }
+    .login-bg-mesh .mesh-node:nth-child(4) { background: rgba(6,182,212,0.1); animation-delay: 3s; animation-duration: 9s; }
+    .login-bg-mesh .mesh-node:nth-child(5) { background: rgba(237,28,36,0.08); animation-delay: 0.5s; animation-duration: 11s; }
+    .login-bg-mesh .mesh-node:nth-child(6) { background: rgba(59,130,246,0.08); animation-delay: 1.5s; }
+    @keyframes meshFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+      25% { transform: translate(30px, -40px) scale(1.5); opacity: 0.7; }
+      50% { transform: translate(-20px, 20px) scale(1); opacity: 0.4; }
+      75% { transform: translate(40px, 30px) scale(1.3); opacity: 0.6; }
+    }
+    /* Login Card */
+    .login-card {
+      background: linear-gradient(145deg, var(--card, #151A23), #1c232e);
+      border: 1px solid var(--border, #2A3241);
+      border-radius: 24px;
+      padding: 50px 44px;
+      width: 420px;
+      max-width: 90vw;
+      text-align: center;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(237,28,36,0.05);
+      position: relative;
+      z-index: 1;
+      animation: loginCardIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes loginCardIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .login-card::before {
+      content: '';
+      position: absolute; top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 60%; height: 2px;
+      background: linear-gradient(90deg, transparent, #ED1C24, transparent);
+      border-radius: 2px;
+    }
+    /* Login Logo */
+    .login-logo-wrap {
+      margin-bottom: 8px;
+    }
+    .login-logo-wrap svg {
+      width: 64px; height: 64px;
+      filter: drop-shadow(0 4px 12px rgba(237,28,36,0.2));
+    }
+    .login-brand {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 26px; font-weight: 800;
+      margin-bottom: 4px; letter-spacing: -0.5px;
+    }
+    .login-brand .lb-airtel { color: #ED1C24; font-weight: 900; }
+    .login-brand .lb-mesh { color: var(--text-main, #F3F4F6); }
+    .login-brand .lb-alpha { color: var(--accent, #3b82f6); }
+    .login-sub {
+      font-size: 12px; color: var(--text-muted, #6B7280);
+      font-weight: 600; margin-bottom: 32px;
+      letter-spacing: 0.5px;
+    }
+    .login-sub .tag {
+      display: inline-block;
+      background: rgba(237,28,36,0.08);
+      color: #ED1C24;
+      padding: 2px 10px; border-radius: 50px;
+      font-size: 9px; font-weight: 800;
+      letter-spacing: 1px; text-transform: uppercase;
+      border: 1px solid rgba(237,28,36,0.15);
+      margin-left: 6px;
+    }
+    /* Input Fields */
+    .login-input-group {
+      position: relative; margin-bottom: 16px; text-align: left;
+    }
+    .login-input-group i {
+      position: absolute; left: 18px; top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted, #6B7280); font-size: 14px;
+      transition: color 0.2s;
+    }
+    .login-input {
+      width: 100%; padding: 16px 18px 16px 48px;
+      background: var(--bg, #0B0E14);
+      border: 1.5px solid var(--border, #2A3241);
+      border-radius: 12px;
+      color: var(--text-main, #F3F4F6);
+      font-size: 14px; font-weight: 500;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      outline: none; box-sizing: border-box;
+      transition: all 0.3s;
+    }
+    .login-input::placeholder {
+      color: var(--text-muted, #6B7280);
+      font-weight: 500;
+    }
+    .login-input:focus {
+      border-color: #ED1C24;
+      box-shadow: 0 0 0 3px rgba(237,28,36,0.12);
+    }
+    .login-input:focus + i,
+    .login-input-group:focus-within i {
+      color: #ED1C24;
+    }
+    /* Login Button */
+    .login-btn {
+      width: 100%; padding: 16px;
+      border: none; border-radius: 12px;
+      background: linear-gradient(135deg, #ED1C24, #FF4D54);
+      color: white; font-size: 15px; font-weight: 800;
+      cursor: pointer; margin-top: 8px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: 0.5px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      box-shadow: 0 4px 16px rgba(237,28,36,0.25);
+    }
+    .login-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(237,28,36,0.35);
+    }
+    .login-btn:active {
+      transform: translateY(0);
+    }
+    .login-btn .btn-spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: loginSpin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes loginSpin { to { transform: rotate(360deg); } }
+    .login-btn.loading .btn-spinner { display: inline-block; }
+    .login-btn.loading .btn-label { display: none; }
+    /* Error Message */
+    .login-error {
+      color: #ef4444; font-size: 12px; font-weight: 600;
+      margin-top: 14px; min-height: 20px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: all 0.3s;
+    }
+    .login-error.shake {
+      animation: loginShake 0.4s ease-in-out;
+    }
+    @keyframes loginShake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-8px); }
+      40% { transform: translateX(8px); }
+      60% { transform: translateX(-5px); }
+      80% { transform: translateX(5px); }
+    }
+    /* Footer Note */
+    .login-footer {
+      margin-top: 28px; font-size: 10px;
+      color: var(--text-muted, #6B7280);
+      font-weight: 500; line-height: 1.6;
+    }
+    .login-footer .at-red { color: #ED1C24; font-weight: 700; }
+    .login-footer .divider {
+      display: block; width: 40px; height: 1px;
+      background: var(--border); margin: 10px auto;
+    }
+    /* ===== LOGOUT + HEADER USER BADGE ===== */
+    .header-user-badge {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 14px; border-radius: 50px;
+      background: rgba(237,28,36,0.06);
+      border: 1px solid rgba(237,28,36,0.12);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .header-user-badge .user-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, #ED1C24, #FF4D54);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 12px; font-weight: 800;
+    }
+    .header-user-badge .user-name {
+      font-size: 12px; font-weight: 700;
+      color: var(--text-main);
+    }
+    .header-user-badge .user-role {
+      font-size: 9px; color: var(--text-muted);
+      font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .btn-logout {
+      padding: 7px 14px; border-radius: 8px;
+      border: 1px solid rgba(239,68,68,0.3);
+      background: rgba(239,68,68,0.06);
+      color: #ef4444; font-size: 10px; font-weight: 800;
+      cursor: pointer; font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: 0.5px; transition: all 0.2s;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn-logout:hover {
+      background: #ef4444; color: white;
+      border-color: #ef4444;
+      transform: translateY(-1px);
+    }
+    /* Light theme */
+    body.light-theme .login-overlay { background: #F8FAFC; }
+    body.light-theme .login-card {
+      background: linear-gradient(145deg, #FFFFFF, #F8FAFC);
+      border-color: #E2E8F0;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.1);
+    }
+    body.light-theme .login-input {
+      background: #F1F5F9; color: #1E293B; border-color: #CBD5E1;
+    }
+    body.light-theme .header-user-badge {
+      background: rgba(237,28,36,0.04);
+      border-color: rgba(237,28,36,0.08);
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+// ---- 2. LOGIN CREDENTIALS ----
+const MESH_LOGIN_USERS = {
+  'sagar': 'mesh2026',
+  'admin': 'alpha@123',
+  'rahul': 'airtelRD',
+  'amitabh': 'mesh@456',
+  'animesh': 'trial2026'
+};
+const SESSION_KEY = 'meshAlphaAuth';
+const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+// ---- 3. INJECT LOGIN PAGE DOM ----
+(function injectLoginPage() {
+  const overlay = document.createElement('div');
+  overlay.id = 'loginOverlay';
+  overlay.className = 'login-overlay';
+  overlay.innerHTML = `
+    <div class="login-bg-mesh">
+      <div class="mesh-node" style="top:15%;left:10%"></div>
+      <div class="mesh-node" style="top:70%;left:85%"></div>
+      <div class="mesh-node" style="top:30%;left:75%"></div>
+      <div class="mesh-node" style="top:80%;left:20%"></div>
+      <div class="mesh-node" style="top:50%;left:50%"></div>
+      <div class="mesh-node" style="top:10%;left:60%"></div>
+    </div>
+    <div class="login-card">
+      <div class="login-logo-wrap">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ED1C24"/>
+              <stop offset="100%" stop-color="#FF4D54"/>
+            </linearGradient>
+            <linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#3b82f6"/>
+              <stop offset="100%" stop-color="#60a5fa"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="100" cy="100" rx="85" ry="85" fill="none" stroke="#ED1C24" stroke-width="1.5" opacity="0.15" stroke-dasharray="6 4"/>
+          <circle cx="100" cy="100" r="18" fill="url(#lg1)" opacity="0.9"/>
+          <circle cx="100" cy="100" r="8" fill="#fff" opacity="0.95"/>
+          <circle cx="100" cy="35" r="10" fill="url(#lg1)"/>
+          <circle cx="160" cy="70" r="9" fill="url(#lg2)"/>
+          <circle cx="145" cy="140" r="9" fill="url(#lg2)"/>
+          <circle cx="55" cy="140" r="9" fill="#8b5cf6"/>
+          <circle cx="40" cy="70" r="9" fill="url(#lg1)"/>
+          <line x1="100" y1="35" x2="160" y2="70" stroke="#ED1C24" stroke-width="1.5" opacity="0.3"/>
+          <line x1="160" y1="70" x2="145" y2="140" stroke="#3b82f6" stroke-width="1.5" opacity="0.3"/>
+          <line x1="145" y1="140" x2="55" y2="140" stroke="#8b5cf6" stroke-width="1.5" opacity="0.3"/>
+          <line x1="55" y1="140" x2="40" y2="70" stroke="#ED1C24" stroke-width="1.5" opacity="0.3"/>
+          <line x1="40" y1="70" x2="100" y2="35" stroke="#ED1C24" stroke-width="1.5" opacity="0.3"/>
+          <line x1="100" y1="100" x2="100" y2="35" stroke="#ED1C24" stroke-width="1" opacity="0.15"/>
+          <line x1="100" y1="100" x2="160" y2="70" stroke="#3b82f6" stroke-width="1" opacity="0.15"/>
+          <line x1="100" y1="100" x2="145" y2="140" stroke="#3b82f6" stroke-width="1" opacity="0.15"/>
+          <line x1="100" y1="100" x2="55" y2="140" stroke="#8b5cf6" stroke-width="1" opacity="0.15"/>
+          <line x1="100" y1="100" x2="40" y2="70" stroke="#ED1C24" stroke-width="1" opacity="0.15"/>
+          <path d="M88 92 Q94 78 100 92" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+          <path d="M82 84 Q91 66 100 84" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+          <path d="M76 76 Q88 54 100 76" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+        </svg>
+      </div>
+      <div class="login-brand">
+        <span class="lb-airtel">airtel</span>
+        <span class="lb-mesh"> Mesh</span><span class="lb-alpha">Alpha</span>
+      </div>
+      <p class="login-sub">R&D Fleet Intelligence Dashboard <span class="tag">\u2726 v2.0</span></p>
+      <div class="login-input-group">
+        <input type="text" id="loginUser" class="login-input" placeholder="Username" autocomplete="username" />
+        <i class="fas fa-user"></i>
+      </div>
+      <div class="login-input-group">
+        <input type="password" id="loginPass" class="login-input" placeholder="Password" autocomplete="current-password" />
+        <i class="fas fa-lock"></i>
+      </div>
+      <button class="login-btn" id="loginBtn" onclick="handleMeshLogin()">
+        <span class="btn-spinner"></span>
+        <span class="btn-label"><i class="fas fa-sign-in-alt"></i> Sign In</span>
+      </button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-footer">
+        <span class="divider"></span>
+        Powered by <span class="at-red">Airtel</span> R&D \u2014 Mesh Analytics Platform<br>
+        \u00A9 ${new Date().getFullYear()} Bharti Airtel Ltd. \u2014 Internal Use Only
+      </div>
+    </div>`;
+  document.body.prepend(overlay);
+  // Enter key support
+  setTimeout(() => {
+    const passField = document.getElementById('loginPass');
+    const userField = document.getElementById('loginUser');
+    if (passField) passField.addEventListener('keydown', e => { if (e.key === 'Enter') handleMeshLogin(); });
+    if (userField) userField.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPass').focus(); });
+  }, 100);
+})();
+
+// ---- 4. LOGIN HANDLER (FIXED — no more spinner stuck) ----
+function handleMeshLogin() {
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('loginError');
+  const user = (document.getElementById('loginUser').value || '').trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+
+  // Clear previous error
+  errEl.innerHTML = '';
+  errEl.classList.remove('shake');
+
+  // Validate
+  if (!user || !pass) {
+    errEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> Please enter both username and password.';
+    errEl.classList.add('shake');
+    return;
+  }
+
+  // Show loading state
+  btn.classList.add('loading');
+
+  // Simulate brief auth delay for UX
+  setTimeout(() => {
+    if (MESH_LOGIN_USERS[user] && MESH_LOGIN_USERS[user] === pass) {
+      // ✅ SUCCESS — Remove loading FIRST
+      btn.classList.remove('loading');
+
+      // Save session
+      localStorage.setItem(SESSION_KEY, JSON.stringify({
+        user: user,
+        displayName: user.charAt(0).toUpperCase() + user.slice(1),
+        ts: Date.now()
+      }));
+
+      // Hide login overlay
+      document.getElementById('loginOverlay').classList.add('hidden');
+
+      // Add user badge to header
+      injectHeaderUserBadge(user.charAt(0).toUpperCase() + user.slice(1));
+
+      // ✅ Only boot ONCE — prevents double-boot on re-login after logout
+      if (!meshDashboardBooted) {
+        initTheme();
+        boot();
+        meshDashboardBooted = true;
+      }
+    } else {
+      // ✅ FAILED — Remove loading
+      btn.classList.remove('loading');
+      errEl.innerHTML = '<i class="fas fa-times-circle"></i> Invalid credentials. Please try again.';
+      errEl.classList.add('shake');
+      document.getElementById('loginPass').value = '';
+      document.getElementById('loginPass').focus();
+    }
+  }, 600);
+}
+
+// ---- 5. SESSION CHECK ----
+function checkMeshSession() {
+  try {
+    const session = JSON.parse(localStorage.getItem(SESSION_KEY));
+    if (session && session.user && (Date.now() - session.ts) < SESSION_DURATION) {
+      return session;
+    }
+  } catch (e) {}
+  return null;
+}
+
+// ---- 6. LOGOUT HANDLER (FIXED — resets button state) ----
+function handleMeshLogout() {
+  localStorage.removeItem(SESSION_KEY);
+
+  const overlay = document.getElementById('loginOverlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    const u = document.getElementById('loginUser');
+    const p = document.getElementById('loginPass');
+    const e = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    if (u) u.value = '';
+    if (p) p.value = '';
+    if (e) e.innerHTML = '';
+    // ✅ Reset button to normal state on logout
+    if (btn) {
+      btn.classList.remove('loading');
+      btn.innerHTML = '<span class="btn-spinner"></span><span class="btn-label"><i class="fas fa-sign-in-alt"></i> Sign In</span>';
+    }
+    if (u) setTimeout(() => u.focus(), 300);
+  }
+
+  // Remove user badge from header
+  const badge = document.getElementById('headerUserBadge');
+  if (badge) badge.remove();
+}
+
+// ---- 7. HEADER USER BADGE + LOGOUT BUTTON ----
+function injectHeaderUserBadge(displayName) {
+  // Remove existing badge if any
+  const existing = document.getElementById('headerUserBadge');
+  if (existing) existing.remove();
+
+  const themeToggle = document.querySelector('.theme-toggle');
+  if (!themeToggle) return;
+
+  const badgeWrap = document.createElement('div');
+  badgeWrap.id = 'headerUserBadge';
+  badgeWrap.className = 'header-user-badge';
+  badgeWrap.innerHTML = `
+    <div class="user-avatar">${displayName.charAt(0).toUpperCase()}</div>
+    <div style="display:flex;flex-direction:column;">
+      <span class="user-name">Welcome, ${displayName}</span>
+      <span class="user-role">\u25CF Online \u2022 R&D Team</span>
+    </div>
+    <button class="btn-logout" onclick="handleMeshLogout()">
+      <i class="fas fa-sign-out-alt"></i> Logout
+    </button>`;
+  themeToggle.parentNode.insertBefore(badgeWrap, themeToggle);
+}
+
+// ---- 8. AUTO-LOGIN ON PAGE LOAD ----
+(function autoLoginCheck() {
+  const session = checkMeshSession();
+  if (session) {
+    // Valid session — skip login, start dashboard
+    document.getElementById('loginOverlay').classList.add('hidden');
+    injectHeaderUserBadge(session.displayName || session.user);
+    initTheme();
+    boot();
+    meshDashboardBooted = true;
+  } else {
+    // No session — show login, focus username
+    setTimeout(() => {
+      const u = document.getElementById('loginUser');
+      if (u) u.focus();
+    }, 600);
+  }
+})();
+
+console.log('%c\uD83D\uDD10 [AIRTEL MESHALPHA] Login Page v2 (Fixed) loaded', 'color:#ED1C24;font-weight:bold;font-size:12px;');
+// ============================================================
+// END — LOGIN PAGE PATCH
+// ============================================================
 </script>
 </body>
 </html>
